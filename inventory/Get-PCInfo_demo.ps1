@@ -1,0 +1,6 @@
+Write-Output "=== DEMO SYSTEM INFO ==="
+Write-Output "Computer Name: $env:COMPUTERNAME"
+Write-Output "User: $env:USERNAME"
+Write-Output "OS: Demo OS"
+Write-Output "CPU: Demo CPU"
+Write-Output "RAM: 16 GB"
