@@ -72,7 +72,7 @@ Designed for enterprise environments with:
 
 ## 🏗 Architecture (Workflow)
 
-User Input (Lark Account)  
+User Input (User name)  
 ↓  
 Batch Script (Admin Elevation)  
 ↓  
