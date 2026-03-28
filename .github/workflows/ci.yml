@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required files
+        shell: pwsh
+        run: |
+          $required = @(
+            'config/toolkit.ini',
+            'inventory/Get-PCInfo.ps1',
+            'inventory/inventory.bat',
+            'glpi/install_glpi.bat',
+            'portable/endpoint_toolkit.bat'
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) {
+              throw "Missing required file: $file"
+            }
+          }
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            'inventory/Get-PCInfo.ps1',
+            [ref]$null,
+            [ref]$null
+          )
+
+      - name: Validate batch files exist
+        shell: pwsh
+        run: |
+          $batchFiles = @(
+            'inventory/inventory.bat',
+            'glpi/install_glpi.bat',
+            'portable/endpoint_toolkit.bat'
+          )
+          foreach ($file in $batchFiles) {
+            if (-not (Test-Path $file)) {
+              throw "Batch file missing: $file"
+            }
+          }

@@ -1,176 +1,92 @@
 # 🖥 Windows IT Automation Toolkit (GLPI Deployment & Inventory)
 
-A production-oriented Windows IT automation toolkit designed to streamline endpoint onboarding, inventory collection, and asset registration in enterprise environments.
-
----
+Production-oriented Windows automation toolkit for endpoint onboarding, inventory collection, and GLPI registration.
 
 ## 🚀 Overview
 
-This project automates repetitive IT operations in real-world environments:
+This project automates repetitive IT operations:
 
 - Endpoint inventory collection
-- GLPI Agent deployment (silent install)
-- User-to-device registration
-- Portable (USB-based) deployment workflows
+- Silent GLPI Agent deployment
+- Portable endpoint workflow orchestration
+- Centralized configuration and logging
 
-Designed for enterprise environments with:
+## 📁 Project Structure
 
-- Network share integration
-- Administrator privilege handling
-- Scalable batch automation workflows
+```text
+IT-Automation-Toolkit/
+├── config/
+│   └── toolkit.ini
+├── glpi/
+│   ├── config.ini                  # legacy demo config
+│   ├── install_glpi_demo.bat.txt   # legacy demo script
+│   └── install_glpi.bat            # production installer
+├── inventory/
+│   ├── Get-PCInfo_demo.ps1         # legacy demo script
+│   ├── inventory_demo.bat.txt      # legacy demo script
+│   ├── Get-PCInfo.ps1              # production inventory collection
+│   └── inventory.bat               # production runner (admin + logging)
+├── portable/
+│   ├── endpoint_toolkit_demo.bat.txt
+│   └── endpoint_toolkit.bat        # production orchestration
+├── docs/
+│   ├── architecture.md
+│   ├── workflow.md
+│   └── network-diagram.md
+├── logs/                           # runtime logs (gitignored)
+├── output/                         # inventory output (gitignored)
+└── .github/workflows/ci.yml
+```
 
----
+## ⚙️ Production Workflow
 
-## 🧠 Use Cases
+1. `portable/endpoint_toolkit.bat` validates config and elevates to admin.
+2. `inventory/inventory.bat` runs `Get-PCInfo.ps1` and writes inventory output.
+3. `glpi/install_glpi.bat` validates network reachability, installs GLPI Agent, and triggers inventory submission.
+4. All modules append events to a centralized log file.
 
-- Enterprise device onboarding
-- IT asset registration (GLPI)
-- Service desk automation
-- Field IT deployment (USB toolkit)
+## 🧩 Configuration
 
----
+Main configuration is in `config/toolkit.ini`.
 
-## ⚙️ Key Features
+```ini
+[GLPI]
+SERVER_URL=http://glpi.example.local/glpi/front/inventory.php
+MSI_NAME=GLPI-Agent.msi
+INSTALLER_PATH=..\glpi
+PING_HOST=glpi.example.local
 
-### 🧾 Automated Inventory Collection
+[INVENTORY]
+OUTPUT_DIR=..\output\inventory
+INVENTORY_SCRIPT=..\inventory\Get-PCInfo.ps1
 
-- Collects hardware information via PowerShell
-- Generates per-user device reports
-- Standardizes asset data collection
+[LOGGING]
+LOG_DIR=..\logs
+LOG_FILE=toolkit.log
+```
 
----
+## 🔒 Security Notes
 
-### 📦 Silent GLPI Agent Deployment
+- Do not commit production server URLs, credentials, or tokens.
+- Keep sensitive settings in environment-specific config (or secret store).
+- Restrict toolkit execution to authorized IT administrators.
 
-- Installs GLPI Agent using `msiexec`
-- Automatically configures GLPI server endpoint
-- Triggers inventory after installation
+## ✅ CI / Validation
 
----
+GitHub Actions workflow (`.github/workflows/ci.yml`) validates:
 
-### 🔐 Admin Elevation Handling
+- Required file presence
+- PowerShell script syntax parsing
+- Batch file existence checks
 
-- Detects administrator privileges
-- Automatically relaunches script with elevated rights
+## 🛠 Legacy Demo Scripts
 
----
+Legacy demo scripts are preserved for reference:
 
-### 💻 Network + USB Deployment
+- `inventory/*_demo*`
+- `glpi/install_glpi_demo.bat.txt`
+- `portable/endpoint_toolkit_demo.bat.txt`
 
-- Supports deployment via network share (UNC Path)
-- Portable execution via USB (offline environments)
+## 📄 License
 
----
-
-### ⚡ IT Operations Utilities
-
-- Restart / Shutdown scripts
-- File unblock automation
-- Lightweight IT support tools
-
----
-
-## 🏗 Architecture (Workflow)
-
-User Input (User name)  
-↓  
-Batch Script (Admin Elevation)  
-↓  
-PowerShell (Get-PCInfo.ps1)  
-↓  
-Save Inventory Output  
-↓  
-Install GLPI Agent (Silent)  
-↓  
-Send Data to GLPI Server  
-
----
-
-## 🌐 Infrastructure Overview
-
-Client Machines (Office / Factory)  
-        │  
-        ▼  
-Company LAN (192.168.x.x)  
-        │  
-        ▼  
-GLPI Server (Apache + PHP + MariaDB)  
-        │  
-        ▼  
-Asset Database  
-
----
-
-## 🛠 Tech Stack
-
-- Windows Batch Scripting
-- PowerShell
-- GLPI Agent
-- MSI Deployment (`msiexec`)
-- Windows Networking (UNC Path, LAN)
-- Python (PySimpleGUI - Prototype)
-
----
-
-## 📊 Example Output
-
-Computer Name: ENG-PC-01
-User: natthawat
-OS: Windows 11 Pro
-CPU: Intel Core i5-10400
-RAM: 16 GB
-
-
----
-
-## 🔒 Security Considerations
-
-- Internal IPs and server paths should be configurable
-- Avoid hardcoding network paths in production
-- Restrict script usage to authorized IT staff
-- Use environment variables or config files for sensitive data
-
----
-
-## 📈 Result / Impact
-
-- Reduced manual IT onboarding time
-- Standardized asset registration process
-- Improved visibility of IT infrastructure
-- Scalable deployment across multiple endpoints
-
----
-
-## 🚀 Future Improvements
-
-- Centralized configuration (JSON / ENV)
-- Logging & monitoring system
-- Python-based GUI deployment tool
-- CI/CD pipeline for script validation
-
----
-
-## 📷 Screenshots / Diagrams
-
-> Add diagrams in `/docs`
-
-- docs/architecture.png
-- docs/workflow.png
-- docs/network-diagram.png
-
----
-
-## 🧩 Related Knowledge
-
-This project aligns with practical IT operations such as:
-
-- Network troubleshooting workflows :contentReference[oaicite:0]{index=0}
-- Asset management processes
-- IT infrastructure automation
-
----
-
-## 📝 Resume Summary
-
-Developed a Windows-based IT automation toolkit for endpoint onboarding, inventory collection, and GLPI agent deployment, improving operational efficiency and standardizing IT asset management.
-IP Address: [INTERNAL-IP-REDACTED]
+MIT License (see `LICENSE`).
