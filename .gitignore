@@ -1,0 +1,10 @@
+# Runtime outputs
+output/
+logs/
+**/Output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
