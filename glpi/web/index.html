@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>คู่มือลงทะเบียนเครื่อง — PJPARAWOOD IT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sarabun:wght@300;400;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#eef5f4;font-family:'Sarabun',sans-serif;color:#1a2e2b;padding:24px;display:flex;justify-content:center}
+.wrap{max-width:640px;width:100%}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#3aab8c;letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px;display:flex;align-items:center;gap:8px}
+.logo::before{content:'';display:block;width:20px;height:1px;background:#3aab8c}
+.card{background:#fff;border:1px solid #c8deda;border-radius:10px;overflow:hidden;margin-bottom:20px;box-shadow:0 4px 28px rgba(46,158,116,.08)}
+.card-head{padding:24px 28px;border-bottom:1px solid #c8deda;background:#f7fbfa}
+.card-head h2{font-size:18px;font-weight:600}
+.card-body{padding:24px 28px}
+h1{font-size:26px;font-weight:600;margin-bottom:8px}
+.sub{font-size:15px;color:#7aa098;line-height:1.7;margin-bottom:28px}
+.why{display:grid;gap:12px;margin-bottom:8px}
+.why-item{display:flex;gap:12px;font-size:14px;line-height:1.6}
+.icon{width:28px;height:28px;border-radius:50%;background:#e6f5f0;color:#3aab8c;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #e8f0ee}
+th{background:#f7fbfa;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#7aa098;text-transform:uppercase;letter-spacing:.06em}
+.step{display:flex;gap:16px;margin-bottom:20px}
+.num{width:32px;height:32px;border-radius:50%;background:#3aab8c;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;flex-shrink:0}
+.step-text{font-size:15px;line-height:1.6}
+.step-text b{color:#1a2e2b}
+.step-text small{display:block;color:#7aa098;font-size:13px;margin-top:2px}
+.note{background:#fef8e8;border:1px solid #f0dfa0;border-radius:6px;padding:14px 16px;font-size:14px;line-height:1.6;color:#7a6520;margin:16px 0}
+.result-table td:last-child{font-family:'IBM Plex Mono',monospace;font-size:12px}
+.badge{display:inline-block;font-size:11px;padding:2px 10px;border-radius:99px;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.b-ok{background:#e6f5f0;color:#2e9e74}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+a.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:#3aab8c;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;transition:opacity .15s;box-shadow:0 2px 12px rgba(46,158,116,.25)}
+a.btn:hover{opacity:.88}
+a.btn.secondary{background:#fff;color:#3aab8c;border:1px solid #3aab8c;box-shadow:none}
+a.btn.secondary:hover{background:#f0faf7}
+.contact{font-size:14px;line-height:1.8;color:#7aa098}
+.contact b{color:#1a2e2b}
+.foot{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7aa098;padding:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">IT PJPARAWOOD — Computer Registration Guide</div>
+
+  <!-- ทำไมต้องลงทะเบียน -->
+  <div class="card">
+    <div class="card-head"><h2>ทำไมต้องลงทะเบียน?</h2></div>
+    <div class="card-body">
+      <p class="sub">ฝ่าย IT ต้องรู้ว่าเครื่องคอมพิวเตอร์แต่ละเครื่องอยู่กับใคร เพื่อให้ช่วยเหลือได้รวดเร็วขึ้น</p>
+      <div class="why">
+        <div class="why-item"><div class="icon">📞</div><div><b>ติดต่อสะดวก</b> — IT รู้ว่าเครื่องนี้อยู่กับใคร ไม่ต้องเสียเวลาตามหา</div></div>
+        <div class="why-item"><div class="icon">⚡</div><div><b>แก้ปัญหาเร็วขึ้น</b> — ทีม IT เห็นข้อมูล hardware ของเครื่องคุณล่วงหน้า</div></div>
+        <div class="why-item"><div class="icon">🔒</div><div><b>ปลอดภัยมากขึ้น</b> — ถ้าเครื่องหาย IT รู้ได้ทันทีว่าเป็นเครื่องของใคร</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- สิ่งที่ต้องเตรียม -->
+  <div class="card">
+    <div class="card-head"><h2>สิ่งที่ต้องเตรียม</h2></div>
+    <div class="card-body">
+      <table>
+        <tr><th>#</th><th>รายการ</th><th>รายละเอียด</th></tr>
+        <tr><td>1</td><td>Lark account</td><td>ชื่อบัญชี Lark ที่ใช้ในบริษัท เช่น Dave_IT</td></tr>
+        <tr><td>2</td><td>รหัสพนักงาน</td><td>รหัสพนักงานของคุณ เช่น 9124</td></tr>
+        <tr><td>3</td><td>แผนก</td><td>แผนกที่สังกัด เช่น IT, HR, Operation/PE</td></tr>
+        <tr><td>4</td><td>รหัสทรัพย์สิน</td><td>(ถ้ามี) ดูจากสติ๊กเกอร์ที่ตัวเครื่อง</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ขั้นตอน -->
+  <div class="card">
+    <div class="card-head"><h2>ขั้นตอนการลงทะเบียน</h2></div>
+    <div class="card-body">
+
+      <div class="step"><div class="num">1</div><div class="step-text"><b>ติดตั้ง GLPI Agent</b><small>กดปุ่ม "ติดตั้ง GLPI Agent" ด้านล่าง → เปิดไฟล์ที่โหลดมา → กด Yes เมื่อ Windows ถาม → รอจนเสร็จ (ทำครั้งเดียว)</small></div></div>
+
+      <div class="step"><div class="num">2</div><div class="step-text"><b>เปิดหน้าลงทะเบียน</b><small>กดปุ่ม "ลงทะเบียนเครื่อง" ด้านล่าง → เปิดไฟล์ที่โหลดมา → เบราว์เซอร์จะเปิดหน้าลงทะเบียนอัตโนมัติ พร้อมชื่อเครื่องของคุณ</small></div></div>
+
+      <div class="step"><div class="num">3</div><div class="step-text"><b>กรอกข้อมูล</b><small>พิมพ์ Lark account, รหัสพนักงาน, เลือกแผนก, กรอกรหัสทรัพย์สิน (ถ้ามี)</small></div></div>
+
+      <div class="step"><div class="num">4</div><div class="step-text"><b>กดปุ่ม "ลงทะเบียน"</b><small>ระบบจะบันทึกข้อมูลและแสดงผลสรุปทันที</small></div></div>
+
+      <div class="note">⚠️ ถ้าเบราว์เซอร์แจ้งว่า "Computer not found" กรุณารอ 5 นาทีแล้วลองใหม่ หรือติดต่อ IT โดยตรง</div>
+
+      <div class="actions">
+        <a class="btn" href="/glpi-agent/Install_GLPI_Agent.bat" download>⬇ ติดตั้ง GLPI Agent</a>
+        <a class="btn secondary" href="/glpi-agent/open_register.bat" download>⬇ ลงทะเบียนเครื่อง</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ผลลัพธ์ -->
+  <div class="card">
+    <div class="card-head"><h2>ผลลัพธ์หลังลงทะเบียนสำเร็จ</h2></div>
+    <div class="card-body">
+      <table class="result-table">
+        <tr><th>Field</th><th>ตัวอย่าง</th><th>สถานะ</th></tr>
+        <tr><td>Computer</td><td>PJC-IT-NB-003</td><td>ชื่อเครื่องถูกต้อง</td></tr>
+        <tr><td>Lark</td><td>Dave_IT</td><td>ชื่อที่กรอก</td></tr>
+        <tr><td>Department</td><td>IT</td><td>แผนกที่เลือก</td></tr>
+        <tr><td>User</td><td><span class="badge b-ok">Linked</span></td><td>ต้องเป็น Linked ✓</td></tr>
+        <tr><td>Group</td><td><span class="badge b-ok">Linked</span></td><td>ต้องเป็น Linked ✓</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ติดต่อ IT -->
+  <div class="card">
+    <div class="card-head"><h2>ติดต่อ IT</h2></div>
+    <div class="card-body">
+      <div class="contact">
+        <b>Lark:</b> ส่งข้อความหาทีม IT โดยตรง<br>
+        <b>Service Request:</b> แจ้งปัญหาผ่าน IT Service Request Form ใน Lark Approval<br>
+        <b>GLPI:</b> <a href="http://YOUR_SERVER_IP" style="color:#3aab8c">http://YOUR_SERVER_IP</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">PJPARAWOOD IT &copy; 2025</div>
+</div>
+</body>
+</html>
