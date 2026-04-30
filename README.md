@@ -2,11 +2,29 @@
 
 Production-oriented Windows automation toolkit for endpoint onboarding, inventory collection, GLPI asset management, and Lark integration.
 
+> 💼 **Real-world project** — Built and used daily by a sole IT engineer managing 100+ users in a manufacturing facility. Not a tutorial — this runs in production.
+
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
 ![Batch](https://img.shields.io/badge/Batch-4D4D4D?style=for-the-badge&logo=windows-terminal&logoColor=white)
 ![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![GLPI](https://img.shields.io/badge/GLPI-6C63FF?style=for-the-badge)
 ![GitHub Actions](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+
+
+## 💡 Problem → Solution → Impact
+
+| | Before (Manual) | After (Automated) |
+|---|---|---|
+| **Endpoint onboarding** | ~45 min/device — manual install, inventory, registration | **~5 min/device** — one-click script |
+| **Inventory collection** | Walk to each PC, manually record specs | **Run remotely** — PowerShell auto-collects |
+| **GLPI registration** | Manually create user + assign device in UI | **Self-service portal** — employees register themselves |
+| **Department groups** | Create 25+ groups one-by-one | **One script** — all groups with hierarchy in seconds |
+| **Device status updates** | Click through UI for each device | **Bulk update** — PowerShell fixes all at once |
+
+> **Total time saved: ~3+ hours/week** on routine IT operations
+
+---
+
 
 ## 🚀 Overview
 
