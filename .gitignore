@@ -8,3 +8,7 @@ logs/
 Thumbs.db
 *.tmp
 *.log
+
+# Local files with real credentials (not for GitHub)
+glpi/glpi_config.ini
+_local-only/
