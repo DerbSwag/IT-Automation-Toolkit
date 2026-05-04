@@ -5,15 +5,7 @@ param(
     [string]$ConfigPath = "\\YOUR_SERVER_IP\Users\Public\IT_inventory\glpi_config.ini"
 )
 
-function Read-IniFile($path) {
-    $ini = @{}; $section = ""
-    foreach ($line in Get-Content $path) {
-        $line = $line.Trim()
-        if ($line -match '^\[(.+)\]$') { $section = $matches[1]; $ini[$section] = @{} }
-        elseif ($line -match '^(.+?)=(.*)$' -and $section) { $ini[$section][$matches[1].Trim()] = $matches[2].Trim() }
-    }
-    return $ini
-}
+. "$PSScriptRoot\lib\Read-IniFile.ps1"
 
 function Get-AppToken($t) {
     $ips = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
@@ -35,11 +27,6 @@ Write-Host "============================================="
 Write-Host "  Hostname : $Hostname"
 Write-Host "  Lark     : $LarkAccount"
 Write-Host ""
-
-if (-not (Test-Path $ConfigPath)) {
-    Write-Host "[ERROR] Config file not found: $ConfigPath"
-    exit 1
-}
 
 $config    = Read-IniFile $ConfigPath
 $glpiUrl   = $config["GLPI"]["SERVER_URL"]
@@ -68,7 +55,6 @@ try {
 
     if (-not $computers.data -or $computers.data.Count -eq 0) {
         Write-Host "[WARN] Computer '$Hostname' not found in GLPI yet."
-        # exit 1 = ให้ .bat retry
         exit 1
     }
 
