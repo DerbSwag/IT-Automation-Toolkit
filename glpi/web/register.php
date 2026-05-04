@@ -4,32 +4,25 @@
 // ============================================================
 $iniPath = __DIR__ . '/glpi_config.ini';
 if (!file_exists($iniPath)) {
-    // fallback hardcode ถ้าไม่มีไฟล์
-    $cfg = [
-        'glpiUrl'   => 'http://YOUR_SERVER_IP',
-        'userToken' => 'YOUR_USER_TOKEN',
-        'tokens'    => [
-            '192.168.1'   => 'YOUR_APP_TOKEN_VLAN1',
-            '192.168.2'   => 'YOUR_APP_TOKEN_VLAN2',
-            '192.168.100' => 'YOUR_APP_TOKEN_VLAN100',
-            '192.168.101' => 'YOUR_APP_TOKEN_VLAN101',
-            '127'         => 'YOUR_APP_TOKEN_LOCALHOST',
-        ],
-    ];
-} else {
-    $ini = parse_ini_file($iniPath, true);
-    $cfg = [
-        'glpiUrl'   => 'http://127.0.0.1',
-        'userToken' => $ini['GLPI']['USER_TOKEN'],
-        'tokens'    => [
-            '192.168.1'   => $ini['APP_TOKENS']['VLAN1'],
-            '192.168.2'   => $ini['APP_TOKENS']['VLAN2'],
-            '192.168.100' => $ini['APP_TOKENS']['VLAN100'],
-            '192.168.101' => $ini['APP_TOKENS']['VLAN101'],
-            '127'         => $ini['APP_TOKENS']['LOCALHOST'],
-        ],
-    ];
+    http_response_code(500);
+    die('Configuration file not found. Contact IT administrator.');
 }
+$ini = parse_ini_file($iniPath, true);
+if (!$ini || empty($ini['GLPI']['SERVER_URL']) || empty($ini['GLPI']['USER_TOKEN'])) {
+    http_response_code(500);
+    die('Invalid configuration. Contact IT administrator.');
+}
+$cfg = [
+    'glpiUrl'   => rtrim($ini['GLPI']['SERVER_URL'], '/'),
+    'userToken' => $ini['GLPI']['USER_TOKEN'],
+    'tokens'    => [
+        '192.168.1'   => $ini['APP_TOKENS']['VLAN1']      ?? '',
+        '192.168.2'   => $ini['APP_TOKENS']['VLAN2']      ?? '',
+        '192.168.100' => $ini['APP_TOKENS']['VLAN100']     ?? '',
+        '192.168.101' => $ini['APP_TOKENS']['VLAN101']     ?? '',
+        '127'         => $ini['APP_TOKENS']['LOCALHOST']    ?? '',
+    ],
+];
 
 $glpiUrl   = $cfg['glpiUrl'];
 $userToken = $cfg['userToken'];
@@ -59,51 +52,46 @@ function getAppToken($ip) {
 }
 
 // ============================================================
-// cURL helpers
+// cURL helpers with error handling
 // ============================================================
-function glpiGet($ep, $h) {
+function glpiRequest($ep, $method, $h, $body = null) {
     global $glpiUrl;
-    $ch = curl_init("$glpiUrl/apirest.php/$ep");
-    curl_setopt_array($ch,[
+    $url = "$glpiUrl/apirest.php/$ep";
+    $ch  = curl_init($url);
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER     => $h,
-        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_TIMEOUT        => 15,
         CURLOPT_CONNECTTIMEOUT => 5,
-    ]);
-    $r = curl_exec($ch);
+    ];
+    if ($method === 'POST') {
+        $opts[CURLOPT_POST] = true;
+        $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+    } elseif ($method === 'PUT') {
+        $opts[CURLOPT_CUSTOMREQUEST] = 'PUT';
+        $opts[CURLOPT_POSTFIELDS] = json_encode($body);
+    }
+    curl_setopt_array($ch, $opts);
+    $r    = curl_exec($ch);
+    $err  = curl_error($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    return json_decode($r, true);
+
+    if ($r === false) {
+        error_log("[GLPI] cURL error on $method $url: $err");
+        return ['_error' => "เชื่อมต่อ GLPI server ไม่ได้: $err"];
+    }
+    $data = json_decode($r, true);
+    if ($code >= 400) {
+        $msg = $data[1] ?? $data['message'] ?? "HTTP $code";
+        error_log("[GLPI] API error $method $url: HTTP $code - $msg");
+        return ['_error' => $msg, '_code' => $code];
+    }
+    return $data;
 }
-function glpiPut($ep, $h, $b) {
-    global $glpiUrl;
-    $ch = curl_init("$glpiUrl/apirest.php/$ep");
-    curl_setopt_array($ch,[
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CUSTOMREQUEST  => 'PUT',
-        CURLOPT_HTTPHEADER     => $h,
-        CURLOPT_POSTFIELDS     => json_encode($b),
-        CURLOPT_TIMEOUT        => 10,
-        CURLOPT_CONNECTTIMEOUT => 5,
-    ]);
-    $r = curl_exec($ch);
-    curl_close($ch);
-    return json_decode($r, true);
-}
-function glpiPost($ep, $h, $b) {
-    global $glpiUrl;
-    $ch = curl_init("$glpiUrl/apirest.php/$ep");
-    curl_setopt_array($ch,[
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST           => true,
-        CURLOPT_HTTPHEADER     => $h,
-        CURLOPT_POSTFIELDS     => json_encode($b),
-        CURLOPT_TIMEOUT        => 10,
-        CURLOPT_CONNECTTIMEOUT => 5,
-    ]);
-    $r = curl_exec($ch);
-    curl_close($ch);
-    return json_decode($r, true);
-}
+function glpiGet($ep, $h)     { return glpiRequest($ep, 'GET', $h); }
+function glpiPut($ep, $h, $b) { return glpiRequest($ep, 'PUT', $h, $b); }
+function glpiPost($ep, $h, $b){ return glpiRequest($ep, 'POST', $h, $b); }
 
 function createGlpiUser($lark, $empId, $headers) {
     $res = glpiPost('User', $headers, ['input' => [
@@ -113,6 +101,10 @@ function createGlpiUser($lark, $empId, $headers) {
         'realname'  => $lark,
         'is_active' => 1,
     ]]);
+    if (isset($res['_error'])) {
+        error_log("[GLPI] Failed to create user '$lark': " . $res['_error']);
+        return null;
+    }
     return $res['id'] ?? null;
 }
 
@@ -133,7 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $clientIp  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $appToken  = getAppToken($clientIp);
-    $curlToken = $cfg['tokens']['127']; // localhost token สำหรับ cURL
     $deptLabel = $subdept ? "$dept / $subdept" : $dept;
 
     if (empty($lark))         $error = "กรุณากรอก Lark account";
@@ -142,14 +133,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif (empty($hostname)) $error = "ไม่พบชื่อเครื่อง กรุณาใช้ shortcut ที่ IT ส่งให้";
     else {
         $headers = [
-            "App-Token: $curlToken",
+            "App-Token: $appToken",
             "Authorization: user_token $userToken",
             "Content-Type: application/json",
         ];
         $session = glpiGet('initSession', $headers);
-        if (!isset($session['session_token'])) {
-            // debug info (ซ่อนจาก user, ดูได้จาก php error log)
-            error_log("[GLPI Register] initSession failed. IP=$clientIp Token=$appToken URL=$glpiUrl Response=" . json_encode($session));
+        if (isset($session['_error'])) {
+            error_log("[GLPI Register] initSession failed. IP=$clientIp URL=$glpiUrl Error=" . $session['_error']);
+            $error = "เชื่อมต่อ GLPI ไม่ได้ กรุณาติดต่อ IT";
+        } elseif (!isset($session['session_token'])) {
+            error_log("[GLPI Register] initSession: no session_token. Response=" . json_encode($session));
             $error = "เชื่อมต่อ GLPI ไม่ได้ กรุณาติดต่อ IT";
         } else {
             $headers[] = "Session-Token: " . $session['session_token'];
@@ -195,19 +188,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 if ($gId) $input['groups_id'] = (int)$gId;
 
-                glpiPut("Computer/$cId", $headers, ['input' => $input]);
-
-                $success = true;
-                $result  = [
-                    'lark'         => $lark,
-                    'emp_id'       => $empId,
-                    'dept'         => $deptLabel,
-                    'computer'     => $hostname,
-                    'asset_number' => $assetNumber,
-                    'user_linked'  => !empty($uRes['data']),
-                    'user_created' => $userCreated,
-                    'group_linked' => !empty($gRes['data']),
-                ];
+                $putRes = glpiPut("Computer/$cId", $headers, ['input' => $input]);
+                if (isset($putRes['_error'])) {
+                    error_log("[GLPI Register] Failed to update computer $cId: " . $putRes['_error']);
+                    $error = "อัปเดตข้อมูลเครื่องไม่สำเร็จ กรุณาลองใหม่หรือติดต่อ IT";
+                } else {
+                    $success = true;
+                    $result  = [
+                        'lark'         => $lark,
+                        'emp_id'       => $empId,
+                        'dept'         => $deptLabel,
+                        'computer'     => $hostname,
+                        'asset_number' => $assetNumber,
+                        'user_linked'  => !empty($uRes['data']),
+                        'user_created' => $userCreated,
+                        'group_linked' => !empty($gRes['data']),
+                    ];
+                }
             }
             glpiGet('killSession', $headers);
         }

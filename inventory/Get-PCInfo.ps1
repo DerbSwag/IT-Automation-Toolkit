@@ -22,6 +22,7 @@ try {
     $computerSystem = Get-ClassData -ClassName Win32_ComputerSystem
     $operatingSystem = Get-ClassData -ClassName Win32_OperatingSystem
     $processor = Get-ClassData -ClassName Win32_Processor | Select-Object -First 1
+    $bios = Get-ClassData -ClassName Win32_BIOS
     $networkAdapters = Get-ClassData -ClassName Win32_NetworkAdapterConfiguration |
         Where-Object { $_.IPEnabled -eq $true }
     $disk = Get-ClassData -ClassName Win32_LogicalDisk |
@@ -37,6 +38,8 @@ try {
         "Domain: $($computerSystem.Domain)"
         "Manufacturer: $($computerSystem.Manufacturer)"
         "Model: $($computerSystem.Model)"
+        "SerialNumber: $($bios.SerialNumber)"
+        "BIOSVersion: $($bios.SMBIOSBIOSVersion)"
         "OS: $($operatingSystem.Caption)"
         "OSVersion: $($operatingSystem.Version)"
         "CPU: $($processor.Name)"
@@ -62,6 +65,21 @@ try {
         $lines += "  IP: $ip"
         $lines += "  Gateway: $gw"
         $lines += "  DNS: $dns"
+    }
+
+    $lines += ""
+    $lines += "=== INSTALLED SOFTWARE ==="
+    $regPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    $software = $regPaths | ForEach-Object { Get-ItemProperty $_ -ErrorAction SilentlyContinue } |
+        Where-Object { $_.DisplayName } |
+        Sort-Object DisplayName -Unique |
+        Select-Object DisplayName, DisplayVersion
+    foreach ($app in $software) {
+        $ver = if ($app.DisplayVersion) { " ($($app.DisplayVersion))" } else { "" }
+        $lines += "  $($app.DisplayName)$ver"
     }
 
     if ($OutputPath) {
