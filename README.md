@@ -91,6 +91,17 @@ inventory.bat → elevates to admin → runs Get-PCInfo.ps1 → saves output
 
 Silent deployment of GLPI Agent with pre-flight checks.
 
+**Which script to use:**
+
+| Script | Use When |
+|--------|----------|
+| `Install_GLPI_Agent.bat` | **Recommended** — Downloads MSI via HTTP, verifies SHA256, installs silently |
+| `install_glpi.bat` | Legacy — Uses MSI from local network share |
+| `IT_PJ_Inventory.bat` | All-in-one — Inventory + GLPI install in a single run |
+
+> `install_glpi.bat` is kept for environments without HTTP download. For new deployments, prefer `Install_GLPI_Agent.bat`.
+
+
 ```
 Install_GLPI_Agent.bat → ping server → download MSI → silent install → trigger inventory
 ```
@@ -176,7 +187,20 @@ VLAN2=YOUR_APP_TOKEN_VLAN2
 GitHub Actions workflow validates on every push:
 - Required file presence
 - PowerShell script syntax parsing
-- Batch file existence checks
+- Credential leak detection (blocks commits with real tokens)
+- Pester test suite execution
+
+## Tests
+
+Run Pester tests locally:
+
+```powershell
+Invoke-Pester tests/ -Verbose
+```
+
+Tests cover:
+- `Read-IniFile` - INI parsing, missing file handling, empty values
+- `Get-PCInfo` - stdout output, file output, hostname detection
 
 ## 📄 License
 

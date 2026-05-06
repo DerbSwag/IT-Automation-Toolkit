@@ -84,6 +84,23 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
+:: --- Verify checksum ---
+set "CHECKSUM_URL=%DOWNLOAD_URL%.sha256"
+set "CHECKSUM_FILE=%LOCAL_DIR%\checksum.sha256"
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri '%CHECKSUM_URL%' -OutFile '%CHECKSUM_FILE%' -UseBasicParsing -TimeoutSec 30 } catch { exit 0 }"
+if exist "%CHECKSUM_FILE%" (
+    powershell -NoProfile -Command "$expected=(Get-Content '%CHECKSUM_FILE%' -First 1).Split(' ')[0]; $actual=(Get-FileHash '%LOCAL_MSI%' -Algorithm SHA256).Hash; if($expected -ne $actual){Write-Host '[ERROR] Checksum mismatch'; exit 1}"
+    if %errorlevel% neq 0 (
+        echo [ERROR] Downloaded file failed integrity check. Aborting.
+        del "%LOCAL_MSI%" 2>nul
+        pause
+        exit /b 50
+    )
+    echo [OK] Checksum verified.
+) else (
+    echo [WARN] No checksum file available - skipping verification.
+)
+
 echo [INFO] Running silent install...
 msiexec /i "%LOCAL_MSI%" /qn /norestart ^
     /L*v "%LOG_FILE%" ^

@@ -1,4 +1,13 @@
 <?php
+session_start();
+
+// ============================================================
+// CSRF Protection
+// ============================================================
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // ============================================================
 // อ่าน config จาก glpi_config.ini
 // ============================================================
@@ -94,10 +103,11 @@ function glpiPut($ep, $h, $b) { return glpiRequest($ep, 'PUT', $h, $b); }
 function glpiPost($ep, $h, $b){ return glpiRequest($ep, 'POST', $h, $b); }
 
 function createGlpiUser($lark, $empId, $headers) {
+    $hashedPw = password_hash($empId, PASSWORD_DEFAULT);
     $res = glpiPost('User', $headers, ['input' => [
         'name'      => $lark,
-        'password'  => $empId,
-        'password2' => $empId,
+        'password'  => $hashedPw,
+        'password2' => $hashedPw,
         'realname'  => $lark,
         'is_active' => 1,
     ]]);
@@ -117,20 +127,33 @@ $error    = null;
 $success  = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // CSRF validation
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'], $token)) {
+        $error = "Invalid request. Please reload the page and try again.";
+    }
+
     $lark        = trim($_POST['lark']         ?? '');
     $empId       = trim($_POST['emp_id']        ?? '');
     $dept        = trim($_POST['dept']          ?? '');
     $subdept     = trim($_POST['subdept']       ?? '');
     $assetNumber = trim($_POST['asset_number']  ?? '');
 
+    // Input length validation
+    if (!$error && mb_strlen($lark) > 50)        $error = "Lark account ยาวเกินไป (สูงสุด 50 ตัวอักษร)";
+    if (!$error && mb_strlen($empId) > 20)       $error = "รหัสพนักงานยาวเกินไป (สูงสุด 20 ตัวอักษร)";
+    if (!$error && mb_strlen($assetNumber) > 30) $error = "Asset number ยาวเกินไป (สูงสุด 30 ตัวอักษร)";
+    if (!$error && !preg_match('/^[a-zA-Z0-9_.\-@]+$/', $lark)) $error = "Lark account มีอักขระไม่ถูกต้อง";
+    if (!$error && !preg_match('/^[a-zA-Z0-9]+$/', $empId))      $error = "รหัสพนักงานต้องเป็นตัวเลขหรือตัวอักษรเท่านั้น";
+
     $clientIp  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $appToken  = getAppToken($clientIp);
     $deptLabel = $subdept ? "$dept / $subdept" : $dept;
 
-    if (empty($lark))         $error = "กรุณากรอก Lark account";
-    elseif (empty($empId))    $error = "กรุณากรอกรหัสพนักงาน";
-    elseif (empty($dept))     $error = "กรุณาเลือกแผนก";
-    elseif (empty($hostname)) $error = "ไม่พบชื่อเครื่อง กรุณาใช้ shortcut ที่ IT ส่งให้";
+    if (!$error && empty($lark))         $error = "กรุณากรอก Lark account";
+    elseif (!$error && empty($empId))    $error = "กรุณากรอกรหัสพนักงาน";
+    elseif (!$error && empty($dept))     $error = "กรุณาเลือกแผนก";
+    elseif (!$error && empty($hostname)) $error = "ไม่พบชื่อเครื่อง กรุณาใช้ shortcut ที่ IT ส่งให้";
     else {
         $headers = [
             "App-Token: $appToken",
@@ -194,6 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $error = "อัปเดตข้อมูลเครื่องไม่สำเร็จ กรุณาลองใหม่หรือติดต่อ IT";
                 } else {
                     $success = true;
+                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                     $result  = [
                         'lark'         => $lark,
                         'emp_id'       => $empId,
@@ -304,6 +328,7 @@ button:active{transform:scale(.98)}
       </div>
     <?php else: ?>
       <form method="POST" action="?hn=<?= urlencode($hostname) ?>">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
         <div class="field">
           <label for="lark">Lark Account</label>
           <input type="text" id="lark" name="lark" placeholder="เช่น Dave_IT"

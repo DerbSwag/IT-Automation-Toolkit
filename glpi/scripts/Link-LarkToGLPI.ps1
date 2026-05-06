@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$LarkAccount,
     [string]$Hostname = $env:COMPUTERNAME,
-    [string]$ConfigPath = "\\YOUR_SERVER_IP\Users\Public\IT_inventory\glpi_config.ini"
+    [string]$ConfigPath = (Join-Path $PSScriptRoot "..\glpi_config.ini")
 )
 
 . "$PSScriptRoot\lib\Read-IniFile.ps1"

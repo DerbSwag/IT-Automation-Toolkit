@@ -1,3 +1,11 @@
+# Credentials & config (never commit real tokens)
+glpi_config.ini
+config.ini
+!*.ini.example
+
+# Local-only working files
+_local-only/
+
 # Runtime outputs
 output/
 logs/
@@ -8,7 +16,4 @@ logs/
 Thumbs.db
 *.tmp
 *.log
-
-# Local files with real credentials (not for GitHub)
-glpi/glpi_config.ini
-_local-only/
+~$*

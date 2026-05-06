@@ -4,7 +4,10 @@
 #  รันครั้งเดียวเพื่อดูว่า "In use" = states_id เท่าไหร่
 # ============================================================
 
-$ConfigPath = "\\YOUR_SERVER_IP\Users\Public\IT_inventory\glpi_config.ini"
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$ConfigPath = (Join-Path $PSScriptRoot "..\glpi_config.ini")
+)
 
 . "$PSScriptRoot\lib\Read-IniFile.ps1"
 

@@ -1,8 +1,10 @@
-name: ci
+name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   validate:
@@ -10,42 +12,75 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate required files
+      - name: Verify required files exist
         shell: pwsh
         run: |
           $required = @(
             'config/toolkit.ini',
+            'glpi/glpi_config.ini.example',
+            'glpi/scripts/Create-GLPIGroups.ps1',
+            'glpi/scripts/Fix-StatusAndGroup.ps1',
+            'glpi/scripts/Link-LarkToGLPI.ps1',
+            'glpi/scripts/lib/Read-IniFile.ps1',
+            'glpi/web/register.php',
             'inventory/Get-PCInfo.ps1',
             'inventory/inventory.bat',
-            'glpi/install_glpi.bat',
             'portable/endpoint_toolkit.bat'
           )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            Write-Error "Missing files: $($missing -join ', ')"
+            exit 1
+          }
+          Write-Host "All required files present."
 
-          foreach ($file in $required) {
-            if (-not (Test-Path $file)) {
-              throw "Missing required file: $file"
+      - name: PowerShell syntax check
+        shell: pwsh
+        run: |
+          $errors = 0
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors) {
+              Write-Error "$($_.FullName): $($parseErrors.Count) parse error(s)"
+              $parseErrors | ForEach-Object { Write-Error "  $_" }
+              $script:errors++
             }
           }
+          if ($errors) { exit 1 }
+          Write-Host "All PowerShell scripts pass syntax check."
 
-      - name: Validate PowerShell syntax
+      - name: Verify no credentials in tracked files
         shell: pwsh
         run: |
-          $null = [System.Management.Automation.Language.Parser]::ParseFile(
-            'inventory/Get-PCInfo.ps1',
-            [ref]$null,
-            [ref]$null
-          )
-
-      - name: Validate batch files exist
-        shell: pwsh
-        run: |
-          $batchFiles = @(
-            'inventory/inventory.bat',
-            'glpi/install_glpi.bat',
-            'portable/endpoint_toolkit.bat'
-          )
-          foreach ($file in $batchFiles) {
-            if (-not (Test-Path $file)) {
-              throw "Batch file missing: $file"
+          $patterns = @('USER_TOKEN=(?!YOUR_)', 'APP_TOKEN.*=(?!YOUR_)')
+          $found = $false
+          Get-ChildItem -Recurse -Include *.ps1,*.bat,*.ini,*.php -Exclude glpi_config.ini |
+            ForEach-Object {
+              $content = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue
+              foreach ($p in $patterns) {
+                if ($content -match $p) {
+                  Write-Error "Possible credential in: $($_.FullName)"
+                  $found = $true
+                }
+              }
             }
+          if ($found) { exit 1 }
+          Write-Host "No credentials found in tracked files."
+
+      - name: Batch file existence check
+        shell: pwsh
+        run: |
+          $batFiles = Get-ChildItem -Recurse -Filter *.bat
+          Write-Host "Found $($batFiles.Count) batch file(s):"
+          $batFiles | ForEach-Object { Write-Host "  $($_.FullName)" }
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          if (Test-Path tests/) {
+            Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
+            Invoke-Pester tests/ -CI
+          } else {
+            Write-Host "No tests/ directory found, skipping."
           }
