@@ -1,5 +1,8 @@
 # 🖥 Windows IT Automation Toolkit
 
+[![CI](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml)
+
+
 Production-oriented Windows automation toolkit for endpoint onboarding, inventory collection, GLPI asset management, and Lark integration.
 
 > 💼 **Real-world project** — Built and used daily by a sole IT engineer managing 100+ users in a manufacturing facility. Not a tutorial — this runs in production.
