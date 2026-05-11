@@ -40,6 +40,22 @@ This toolkit automates repetitive IT operations in a manufacturing environment (
 - **Lark integration** — Bridge GLPI alerts to Lark messaging
 - **Portable orchestration** — One-click endpoint onboarding with admin elevation
 
+
+```mermaid
+graph TD
+    Admin[IT Admin] --> Onboard[Endpoint Onboarding Script]
+    Onboard --> Inventory[PowerShell Inventory Collection]
+    Onboard --> GLPI_Agent[GLPI Agent Install]
+    Inventory --> GLPI[(GLPI Server)]
+    GLPI_Agent --> GLPI
+    Employee[Employee] --> Web[Self-Service Registration Portal]
+    Web --> |PHP + API| GLPI
+    GLPI --> |Notifications| Lark[Lark Messaging]
+    Admin --> |PowerShell| BulkFix[Bulk Status Fix]
+    BulkFix --> GLPI
+```
+
+
 ---
 
 ## 📁 Project Structure
