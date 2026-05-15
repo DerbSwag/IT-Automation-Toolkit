@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml)
 
-
 Production-oriented Windows automation toolkit for endpoint onboarding, inventory collection, GLPI asset management, and Lark integration.
 
 > 💼 **Real-world project** — Built and used daily by a sole IT engineer managing 100+ users in a manufacturing facility. Not a tutorial — this runs in production.
@@ -40,7 +39,6 @@ This toolkit automates repetitive IT operations in a manufacturing environment (
 - **Lark integration** — Bridge GLPI alerts to Lark messaging
 - **Portable orchestration** — One-click endpoint onboarding with admin elevation
 
-
 ```mermaid
 graph TD
     Admin[IT Admin] --> Onboard[Endpoint Onboarding Script]
@@ -55,7 +53,6 @@ graph TD
     BulkFix --> GLPI
 ```
 
-
 ---
 
 ## 📁 Project Structure
@@ -67,6 +64,7 @@ IT-Automation-Toolkit/
 ├── glpi/
 │   ├── install_glpi.bat                # GLPI Agent installer (production)
 │   ├── Install_GLPI_Agent.bat          # GLPI Agent installer v2 (download + install)
+│   ├── Uninstall_GLPI_Agent.bat        # GLPI Agent uninstaller (v1.2.0)
 │   ├── config.ini                      # Legacy config reference
 │   ├── glpi_config.ini.example         # Config template (copy & fill your tokens)
 │   ├── scripts/
@@ -75,19 +73,29 @@ IT-Automation-Toolkit/
 │   │   └── Link-LarkToGLPI.ps1        # Bridge GLPI notifications → Lark
 │   └── web/
 │       ├── index.html                  # Device registration UI
-│       └── register.php                # Registration backend (GLPI API)
+│       └── register.php                # Registration backend (HTTPS + rate limit)
 ├── inventory/
 │   ├── Get-PCInfo.ps1                  # PowerShell inventory collector
+│   ├── IT_PJ_Inventory.bat             # All-in-one: inventory + GLPI install
 │   └── inventory.bat                   # Runner with admin elevation + logging
+├── scripts/
+│   └── HealthCheck-GLPI.ps1            # Server health check + Lark alerts (v1.2.0)
 ├── portable/
 │   └── endpoint_toolkit.bat            # One-click orchestration script
+├── tests/
+│   ├── Read-IniFile.Tests.ps1          # INI parsing tests
+│   ├── Get-PCInfo.Tests.ps1            # Inventory script tests
+│   ├── GLPIScripts.Tests.ps1           # API scripts syntax + param tests (v1.2.0)
+│   └── BatchFiles.Tests.ps1            # Batch file validation tests (v1.2.0)
 ├── docs/
-│   ├── architecture.md
-│   ├── workflow.md
-│   └── network-diagram.md
+│   ├── architecture.md                 # System architecture + VLAN diagram
+│   ├── workflow.md                     # Workflow diagrams (5 flows)
+│   └── network-diagram.md             # Network layout + firewall rules
 ├── .github/workflows/ci.yml           # CI: file validation + PS syntax check
 ├── .gitignore
-└── LICENSE (MIT)
+├── AGENTS.md                           # AI agent context file
+├── CHANGELOG.md                        # Version history
+└── LICENSE (Apache-2.0)
 ```
 
 ---
@@ -157,6 +165,14 @@ One-click endpoint onboarding script.
 endpoint_toolkit.bat → validate config → elevate admin → inventory → GLPI install
 ```
 
+### 🩺 Health Check (`scripts/`)
+
+Server monitoring with Lark alerting (v1.2.0).
+
+```
+HealthCheck-GLPI.ps1 → check agent service → ping server → test API → verify last inventory → alert on failure
+```
+
 ---
 
 ## 🔧 Configuration
@@ -198,6 +214,8 @@ VLAN2=YOUR_APP_TOKEN_VLAN2
 
 - ✅ No hardcoded credentials — all tokens in config files (gitignored)
 - ✅ `.ini.example` provided as template
+- ✅ HTTPS enforced on registration portal (v1.2.0)
+- ✅ Rate limiting on public endpoints (v1.2.0)
 - ✅ Restrict execution to authorized IT administrators
 - ✅ All sensitive data sanitized before commit
 
@@ -220,7 +238,9 @@ Invoke-Pester tests/ -Verbose
 Tests cover:
 - `Read-IniFile` - INI parsing, missing file handling, empty values
 - `Get-PCInfo` - stdout output, file output, hostname detection
+- `GLPIScripts` - API script syntax validation, parameter checks (v1.2.0)
+- `BatchFiles` - Batch file existence, setlocal usage, no credentials (v1.2.0)
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE)
+Apache-2.0 License — see [LICENSE](LICENSE)

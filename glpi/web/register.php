@@ -2,6 +2,55 @@
 session_start();
 
 // ============================================================
+// Error Logging Setup
+// ============================================================
+$logDir = __DIR__ . '/logs';
+if (!is_dir($logDir)) { mkdir($logDir, 0750, true); }
+ini_set('error_log', $logDir . '/register_' . date('Y-m') . '.log');
+ini_set('log_errors', '1');
+
+function logEvent(string $level, string $msg, array $ctx = []): void {
+    $line = sprintf("[%s] [%s] [%s] %s %s",
+        date('Y-m-d H:i:s'),
+        $level,
+        $_SERVER['REMOTE_ADDR'] ?? '-',
+        $msg,
+        $ctx ? json_encode($ctx, JSON_UNESCAPED_UNICODE) : ''
+    );
+    error_log(trim($line));
+}
+
+// ============================================================
+// HTTPS Enforcement
+// ============================================================
+if (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') {
+    if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'])) {
+        $redirectUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        header("Location: $redirectUrl", true, 301);
+        exit;
+    }
+}
+
+// ============================================================
+// Rate Limiting (file-based, 5 requests per 10 minutes per IP)
+// ============================================================
+function checkRateLimit(string $ip, int $maxAttempts = 5, int $windowSec = 600): bool {
+    $dir = __DIR__ . '/logs/ratelimit';
+    if (!is_dir($dir)) { mkdir($dir, 0750, true); }
+    $file = $dir . '/' . md5($ip) . '.json';
+    $now  = time();
+    $attempts = [];
+    if (file_exists($file)) {
+        $attempts = json_decode(file_get_contents($file), true) ?: [];
+        $attempts = array_filter($attempts, fn($t) => ($now - $t) < $windowSec);
+    }
+    if (count($attempts) >= $maxAttempts) { return false; }
+    $attempts[] = $now;
+    file_put_contents($file, json_encode(array_values($attempts)), LOCK_EX);
+    return true;
+}
+
+// ============================================================
 // CSRF Protection
 // ============================================================
 if (empty($_SESSION['csrf_token'])) {
@@ -127,10 +176,20 @@ $error    = null;
 $success  = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Rate limit check
+    $clientIpRL = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    if (!checkRateLimit($clientIpRL)) {
+        logEvent('WARN', "Rate limit exceeded");
+        $error = "คุณส่งคำขอบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่";
+    }
+
     // CSRF validation
-    $token = $_POST['csrf_token'] ?? '';
-    if (!hash_equals($_SESSION['csrf_token'], $token)) {
-        $error = "Invalid request. Please reload the page and try again.";
+    if (!$error) {
+        $token = $_POST['csrf_token'] ?? '';
+        if (!hash_equals($_SESSION['csrf_token'], $token)) {
+            logEvent('WARN', "CSRF validation failed");
+            $error = "Invalid request. Please reload the page and try again.";
+        }
     }
 
     $lark        = trim($_POST['lark']         ?? '');
@@ -162,10 +221,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
         $session = glpiGet('initSession', $headers);
         if (isset($session['_error'])) {
-            error_log("[GLPI Register] initSession failed. IP=$clientIp URL=$glpiUrl Error=" . $session['_error']);
+            logEvent('ERROR', "initSession failed", ['error' => $session['_error']]);
             $error = "เชื่อมต่อ GLPI ไม่ได้ กรุณาติดต่อ IT";
         } elseif (!isset($session['session_token'])) {
-            error_log("[GLPI Register] initSession: no session_token. Response=" . json_encode($session));
+            logEvent('ERROR', "initSession: no token", ['response' => $session]);
             $error = "เชื่อมต่อ GLPI ไม่ได้ กรุณาติดต่อ IT";
         } else {
             $headers[] = "Session-Token: " . $session['session_token'];
@@ -213,10 +272,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $putRes = glpiPut("Computer/$cId", $headers, ['input' => $input]);
                 if (isset($putRes['_error'])) {
-                    error_log("[GLPI Register] Failed to update computer $cId: " . $putRes['_error']);
+                    logEvent('ERROR', "Update computer failed", ['computer_id' => $cId, 'error' => $putRes['_error']]);
                     $error = "อัปเดตข้อมูลเครื่องไม่สำเร็จ กรุณาลองใหม่หรือติดต่อ IT";
                 } else {
                     $success = true;
+                    logEvent('INFO', "Registration success", ['hostname' => $hostname, 'lark' => $lark, 'dept' => $deptLabel]);
                     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                     $result  = [
                         'lark'         => $lark,

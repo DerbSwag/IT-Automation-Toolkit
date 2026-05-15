@@ -21,6 +21,7 @@ glpi/                       → GLPI Agent installers + API scripts + web portal
   web/                      → PHP + HTML self-service registration
 inventory/                  → PowerShell inventory collector + batch runner
 portable/                   → One-click endpoint onboarding orchestrator
+scripts/                    → Standalone PowerShell utilities (HealthCheck)
 tests/                      → Pester test suite
 .github/workflows/ci.yml   → CI pipeline
 ```

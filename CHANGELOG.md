@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-05-08
+
+### Security
+- Added HTTPS enforcement (301 redirect) in `register.php` (bypassed for localhost)
+- Added rate limiting (5 requests / 10 min per IP) in `register.php`
+
+### Added
+- `scripts/HealthCheck-GLPI.ps1` — Checks agent service, server ping, API, last inventory; sends Lark alert on failure
+- `glpi/Uninstall_GLPI_Agent.bat` — Uninstall GLPI Agent, remove scheduled task and data
+- `tests/GLPIScripts.Tests.ps1` — Pester tests for API scripts (syntax, parameters)
+- `tests/BatchFiles.Tests.ps1` — Pester tests for batch files (existence, setlocal, no credentials)
+- Server-side error logging in `register.php` (`logs/register_YYYY-MM.log`)
+
+### Changed
+- Expanded `docs/architecture.md` with full system diagram, components, VLAN table, security boundaries
+- Expanded `docs/workflow.md` with 5 detailed workflow diagrams (onboarding, registration, groups, lark, CI)
+- Expanded `docs/network-diagram.md` with logical layout, data flow, ports & firewall rules
+
 ## [1.1.0] - 2026-05-06
 
 ### Security
