@@ -55,6 +55,20 @@ graph TD
 
 ---
 
+## 📈 Results
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Endpoint onboarding | ~45 min/device | **~5 min/device** |
+| Weekly IT time saved | — | **3+ hours/week** |
+| Users managed (sole IT) | — | **100+ users** |
+| GLPI group creation | Manual one-by-one | **25+ groups in seconds** |
+| Device status updates | Click-through UI | **Bulk PowerShell fix** |
+| Health check | Manual server check | **Automated + Lark alert** |
+
+---
+
+
 ## 📁 Project Structure
 
 ```text
