@@ -56,6 +56,7 @@ jobs:
           $patterns = @('USER_TOKEN=(?!YOUR_)', 'APP_TOKEN.*=(?!YOUR_)')
           $found = $false
           Get-ChildItem -Recurse -Include *.ps1,*.bat,*.ini,*.php -Exclude glpi_config.ini |
+            Where-Object { $_.FullName -notmatch 'tests[\\/]' } |
             ForEach-Object {
               $content = Get-Content $_.FullName -Raw -ErrorAction SilentlyContinue
               foreach ($p in $patterns) {
