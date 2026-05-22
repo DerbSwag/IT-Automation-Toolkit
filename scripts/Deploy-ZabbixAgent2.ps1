@@ -10,8 +10,8 @@
 
 # === CONFIG - แก้ตรงนี้ ===
 $servers = @(
-    @{ Name = "CHANGE_ME_HOST1"; IP = "192.168.x.x" }
-    @{ Name = "CHANGE_ME_HOST2"; IP = "192.168.x.x" }
+    "192.168.x.x",
+    "192.168.x.x"
 )
 
 $zbxServer      = "CHANGE_ME"
@@ -21,11 +21,12 @@ $msiUrl         = "https://cdn.zabbix.com/zabbix/binaries/stable/7.0/7.0.0/zabbi
 
 $cred = Get-Credential -Message "Enter credentials for remote servers"
 
-foreach ($srv in $servers) {
-    Write-Host "[$($srv.Name)] Deploying..." -ForegroundColor Cyan
+foreach ($ip in $servers) {
+    Write-Host "[$ip] Deploying..." -ForegroundColor Cyan
     try {
-        Invoke-Command -ComputerName $srv.IP -Credential $cred -ScriptBlock {
-            param($url, $hostname, $server, $serverActive)
+        Invoke-Command -ComputerName $ip -Credential $cred -ScriptBlock {
+            param($url, $server, $serverActive)
+            $hostname = $env:COMPUTERNAME
 
             New-Item -Path "C:\Temp" -ItemType Directory -Force | Out-Null
             Invoke-WebRequest -Uri $url -OutFile "C:\Temp\zabbix_agent2.msi"
@@ -38,11 +39,11 @@ foreach ($srv in $servers) {
             Start-Service -Name "Zabbix Agent 2"
 
             Write-Output "OK - $hostname installed and running"
-        } -ArgumentList $msiUrl, $srv.Name, $zbxServer, $zbxServerActive
+        } -ArgumentList $msiUrl, $zbxServer, $zbxServerActive
 
-        Write-Host "[$($srv.Name)] Done" -ForegroundColor Green
+        Write-Host "[$ip] Done" -ForegroundColor Green
     }
     catch {
-        Write-Host "[$($srv.Name)] FAILED: $_" -ForegroundColor Red
+        Write-Host "[$ip] FAILED: $_" -ForegroundColor Red
     }
 }
