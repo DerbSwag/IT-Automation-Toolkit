@@ -74,26 +74,32 @@ graph TD
 ```text
 IT-Automation-Toolkit/
 ├── config/
-│   └── toolkit.ini                     # Centralized configuration
+│   ├── toolkit.ini                     # Centralized configuration
+│   └── httpd.conf                      # Apache config for GLPI web portal
 ├── glpi/
 │   ├── install_glpi.bat                # GLPI Agent installer (production)
 │   ├── Install_GLPI_Agent.bat          # GLPI Agent installer v2 (download + install)
 │   ├── Uninstall_GLPI_Agent.bat        # GLPI Agent uninstaller (v1.2.0)
-│   ├── config.ini                      # Legacy config reference
+│   ├── open_register.bat              # Opens registration portal in browser
 │   ├── glpi_config.ini.example         # Config template (copy & fill your tokens)
 │   ├── scripts/
 │   │   ├── Create-GLPIGroups.ps1       # Create department groups via GLPI API
 │   │   ├── Fix-StatusAndGroup.ps1      # Bulk fix device status & group assignment
-│   │   └── Link-LarkToGLPI.ps1        # Bridge GLPI notifications → Lark
+│   │   ├── Link-LarkToGLPI.ps1        # Bridge GLPI notifications → Lark
+│   │   └── lib/
+│   │       └── Read-IniFile.ps1       # Shared INI parser
 │   └── web/
 │       ├── index.html                  # Device registration UI
 │       └── register.php                # Registration backend (HTTPS + rate limit)
 ├── inventory/
 │   ├── Get-PCInfo.ps1                  # PowerShell inventory collector
 │   ├── IT_PJ_Inventory.bat             # All-in-one: inventory + GLPI install
+│   ├── IT_PJ_Computer_Inventory.bat    # Computer-only inventory variant
+│   ├── IT_PJ_Inven.bat                 # Lightweight inventory script
 │   └── inventory.bat                   # Runner with admin elevation + logging
 ├── scripts/
-│   └── HealthCheck-GLPI.ps1            # Server health check + Lark alerts (v1.2.0)
+│   ├── HealthCheck-GLPI.ps1            # Server health check + Lark alerts (v1.2.0)
+│   └── Deploy-ZabbixAgent2.ps1         # Zabbix Agent 2 deployment script
 ├── portable/
 │   └── endpoint_toolkit.bat            # One-click orchestration script
 ├── tests/
@@ -104,11 +110,17 @@ IT-Automation-Toolkit/
 ├── docs/
 │   ├── architecture.md                 # System architecture + VLAN diagram
 │   ├── workflow.md                     # Workflow diagrams (5 flows)
-│   └── network-diagram.md             # Network layout + firewall rules
-├── .github/workflows/ci.yml           # CI: file validation + PS syntax check
+│   ├── network-diagram.md             # Network layout + firewall rules
+│   ├── case-study.md                   # Real-world impact case study
+│   └── screenshots/                    # UI screenshots for documentation
+├── .github/workflows/
+│   ├── ci.yml                          # CI: file validation + PS syntax check
+│   └── gitleaks.yml                    # Secret scanning (credential leak prevention)
+├── it-bot-demo.html                    # 🤖 AI IT Support Bot demo (interactive)
 ├── .gitignore
 ├── AGENTS.md                           # AI agent context file
 ├── CHANGELOG.md                        # Version history
+├── INCIDENTS.md                        # Incident response documentation
 └── LICENSE (Apache-2.0)
 ```
 
@@ -186,6 +198,38 @@ Server monitoring with Lark alerting (v1.2.0).
 ```
 HealthCheck-GLPI.ps1 → check agent service → ping server → test API → verify last inventory → alert on failure
 ```
+
+---
+
+## 📸 Screenshots
+
+| GLPI Dashboard | Registration Portal |
+|:-:|:-:|
+| ![GLPI Dashboard](docs/screenshots/glpi-dashboard.png) | ![Registration Form](docs/screenshots/registration-form.png) |
+
+| Agent Installer (Download) | Agent Installer (Success) |
+|:-:|:-:|
+| ![Agent Download](docs/screenshots/agent-installer-download.png) | ![Agent Success](docs/screenshots/agent-installer-success.png) |
+
+<details>
+<summary>📖 Registration Guide (step-by-step)</summary>
+
+![Step 1](docs/screenshots/registration-guide-1.png)
+![Step 2](docs/screenshots/registration-guide-2.png)
+![Step 3](docs/screenshots/registration-guide-3.png)
+
+</details>
+
+---
+
+## 🤖 IT Support Bot Demo
+
+Interactive AI-powered IT helpdesk chatbot prototype ([`it-bot-demo.html`](it-bot-demo.html)).
+
+- Built with vanilla HTML/CSS/JS — no dependencies
+- Thai language support for factory employees
+- Simulates IT troubleshooting workflows (password reset, network issues, printer problems)
+- Designed as proof-of-concept for GLPI + AI integration
 
 ---
 

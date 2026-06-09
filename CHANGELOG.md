@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-06-09
+
+### Added
+- `it-bot-demo.html` — Interactive AI IT Support Bot prototype (Thai language)
+- `config/httpd.conf` — Apache configuration for GLPI web portal
+- `scripts/Deploy-ZabbixAgent2.ps1` — Zabbix Agent 2 deployment script
+- `inventory/IT_PJ_Computer_Inventory.bat` — Computer-only inventory variant
+- `inventory/IT_PJ_Inven.bat` — Lightweight inventory script
+- `glpi/open_register.bat` — Opens registration portal in browser
+- `glpi/scripts/lib/Read-IniFile.ps1` — Shared INI parser library
+- `docs/case-study.md` — Real-world impact case study
+- `docs/screenshots/` — UI screenshots (dashboard, registration, agent installer)
+- `.github/workflows/gitleaks.yml` — Secret scanning workflow
+- `INCIDENTS.md` — Incident response documentation
+- Screenshots section in README
+- IT Support Bot Demo section in README
+
+### Security
+- Removed `glpi/config.ini` from repository (credential file)
+
 ## [1.2.0] - 2026-05-08
 
 ### Security
