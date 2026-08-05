@@ -24,12 +24,10 @@ if not exist "%INSTALLER_DIR%\%MSI_NAME%" (
     exit /b 21
 )
 
-ping -n 1 %PING_HOST% >nul 2>&1
-if errorlevel 1 (
-    call :Log WARN "GLPI host is unreachable: %PING_HOST%"
-)
+call :TestGlpiEndpoint
+if errorlevel 1 exit /b %errorlevel%
 
-reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" /s /f "GLPI Agent" >nul 2>&1
+sc query "GLPI-Agent" >nul 2>&1
 if "%ERRORLEVEL%"=="0" (
     call :Log INFO "GLPI Agent already installed; skipping MSI"
     goto :SendInventory
@@ -82,6 +80,21 @@ if not defined LOG_FILE exit /b 26
 
 set "INSTALLER_DIR=%ROOT_DIR%\%INSTALLER_PATH%"
 set "LOG_PATH=%LOG_DIR%\%LOG_FILE%"
+exit /b 0
+
+:TestGlpiEndpoint
+echo %SERVER_URL% | findstr /I /B /C:"https://" >nul
+if errorlevel 1 (
+    call :Log WARN "SERVER_URL does not use HTTPS; use TLS when the GLPI server supports it"
+)
+
+set "API_URL=%SERVER_URL:/front/inventory.php=/apirest.php%"
+call :Log INFO "Checking GLPI API endpoint"
+powershell -NoProfile -Command "try { $r=Invoke-WebRequest -Uri '%API_URL%' -UseBasicParsing -TimeoutSec 15; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 500){ exit 0 }; exit 1 } catch { if($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -lt 500){ exit 0 }; exit 1 }"
+if errorlevel 1 (
+    call :Log ERROR "GLPI API is unreachable: %API_URL%"
+    exit /b 29
+)
 exit /b 0
 
 :EnsureLogDir

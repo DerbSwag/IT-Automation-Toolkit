@@ -60,7 +60,7 @@ if (empty($_SESSION['csrf_token'])) {
 // ============================================================
 // อ่าน config จาก glpi_config.ini
 // ============================================================
-$iniPath = __DIR__ . '/glpi_config.ini';
+$iniPath = getenv('GLPI_CONFIG_PATH') ?: dirname(__DIR__) . '/glpi_config.ini';
 if (!file_exists($iniPath)) {
     http_response_code(500);
     die('Configuration file not found. Contact IT administrator.');
@@ -73,13 +73,10 @@ if (!$ini || empty($ini['GLPI']['SERVER_URL']) || empty($ini['GLPI']['USER_TOKEN
 $cfg = [
     'glpiUrl'   => rtrim($ini['GLPI']['SERVER_URL'], '/'),
     'userToken' => $ini['GLPI']['USER_TOKEN'],
-    'tokens'    => [
-        '192.168.1'   => $ini['APP_TOKENS']['VLAN1']      ?? '',
-        '192.168.2'   => $ini['APP_TOKENS']['VLAN2']      ?? '',
-        '192.168.100' => $ini['APP_TOKENS']['VLAN100']     ?? '',
-        '192.168.101' => $ini['APP_TOKENS']['VLAN101']     ?? '',
-        '127'         => $ini['APP_TOKENS']['LOCALHOST']    ?? '',
-    ],
+    'tokens'    => $ini['APP_TOKENS'] ?? [],
+    'networks'  => $ini['NETWORKS'] ?? [],
+    'allowedSubnets' => array_filter(array_map('trim', explode(',', $ini['REGISTRATION']['ALLOWED_SUBNETS'] ?? ''))),
+    'allowUserCreation' => filter_var($ini['REGISTRATION']['ALLOW_USER_CREATION'] ?? false, FILTER_VALIDATE_BOOLEAN),
 ];
 
 $glpiUrl   = $cfg['glpiUrl'];
@@ -101,12 +98,31 @@ $departments = [
     "BD&CS"     => ["CS","BD","EC"],
 ];
 
+function isIpInCidr(string $ip, string $cidr): bool {
+    if (!str_contains($cidr, '/')) return hash_equals($cidr, $ip);
+    [$network, $bits] = explode('/', $cidr, 2);
+    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || !filter_var($network, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return false;
+    $bits = (int)$bits;
+    if ($bits < 0 || $bits > 32) return false;
+    $mask = $bits === 0 ? 0 : (-1 << (32 - $bits));
+    return ((ip2long($ip) & $mask) === (ip2long($network) & $mask));
+}
+
+function isAllowedClient(string $ip): bool {
+    global $cfg;
+    foreach ($cfg['allowedSubnets'] as $cidr) {
+        if (isIpInCidr($ip, $cidr)) return true;
+    }
+    return false;
+}
+
 function getAppToken($ip) {
     global $cfg;
-    foreach ($cfg['tokens'] as $prefix => $token) {
-        if (strpos($ip, $prefix) === 0) return $token;
+    foreach ($cfg['networks'] as $tokenName => $cidr) {
+        $token = $cfg['tokens'][$tokenName] ?? '';
+        if ($token !== '' && isIpInCidr($ip, $cidr)) return $token;
     }
-    return $cfg['tokens']['192.168.1']; // default VLAN1
+    return null;
 }
 
 // ============================================================
@@ -151,12 +167,12 @@ function glpiGet($ep, $h)     { return glpiRequest($ep, 'GET', $h); }
 function glpiPut($ep, $h, $b) { return glpiRequest($ep, 'PUT', $h, $b); }
 function glpiPost($ep, $h, $b){ return glpiRequest($ep, 'POST', $h, $b); }
 
-function createGlpiUser($lark, $empId, $headers) {
-    $hashedPw = password_hash($empId, PASSWORD_DEFAULT);
+function createGlpiUser($lark, $headers) {
+    $randomPassword = bin2hex(random_bytes(24));
     $res = glpiPost('User', $headers, ['input' => [
         'name'      => $lark,
-        'password'  => $hashedPw,
-        'password2' => $hashedPw,
+        'password'  => $randomPassword,
+        'password2' => $randomPassword,
         'realname'  => $lark,
         'is_active' => 1,
     ]]);
@@ -165,6 +181,11 @@ function createGlpiUser($lark, $empId, $headers) {
         return null;
     }
     return $res['id'] ?? null;
+}
+
+function findExactMatch(array $response, string $name): ?array {
+    $matches = array_values(array_filter($response['data'] ?? [], fn($row) => isset($row['1']) && strcasecmp(trim((string)$row['1']), $name) === 0));
+    return count($matches) === 1 ? $matches[0] : null;
 }
 
 // ============================================================
@@ -193,26 +214,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $lark        = trim($_POST['lark']         ?? '');
-    $empId       = trim($_POST['emp_id']        ?? '');
     $dept        = trim($_POST['dept']          ?? '');
     $subdept     = trim($_POST['subdept']       ?? '');
     $assetNumber = trim($_POST['asset_number']  ?? '');
 
     // Input length validation
     if (!$error && mb_strlen($lark) > 50)        $error = "Lark account ยาวเกินไป (สูงสุด 50 ตัวอักษร)";
-    if (!$error && mb_strlen($empId) > 20)       $error = "รหัสพนักงานยาวเกินไป (สูงสุด 20 ตัวอักษร)";
     if (!$error && mb_strlen($assetNumber) > 30) $error = "Asset number ยาวเกินไป (สูงสุด 30 ตัวอักษร)";
     if (!$error && !preg_match('/^[a-zA-Z0-9_.\-@]+$/', $lark)) $error = "Lark account มีอักขระไม่ถูกต้อง";
-    if (!$error && !preg_match('/^[a-zA-Z0-9]+$/', $empId))      $error = "รหัสพนักงานต้องเป็นตัวเลขหรือตัวอักษรเท่านั้น";
 
     $clientIp  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $appToken  = getAppToken($clientIp);
     $deptLabel = $subdept ? "$dept / $subdept" : $dept;
 
     if (!$error && empty($lark))         $error = "กรุณากรอก Lark account";
-    elseif (!$error && empty($empId))    $error = "กรุณากรอกรหัสพนักงาน";
     elseif (!$error && empty($dept))     $error = "กรุณาเลือกแผนก";
     elseif (!$error && empty($hostname)) $error = "ไม่พบชื่อเครื่อง กรุณาใช้ shortcut ที่ IT ส่งให้";
+    elseif (!$error && !preg_match('/^[A-Z0-9][A-Z0-9-]{0,62}$/', $hostname)) $error = "ชื่อเครื่องไม่ถูกต้อง";
+    elseif (!$error && !array_key_exists($dept, $departments)) $error = "แผนกไม่ถูกต้อง";
+    elseif (!$error && $subdept !== '' && !in_array($subdept, $departments[$dept], true)) $error = "แผนกย่อยไม่ถูกต้อง";
+    elseif (!$error && !isAllowedClient($clientIp)) $error = "เครือข่ายนี้ไม่ได้รับอนุญาตให้ลงทะเบียน";
+    elseif (!$error && !$appToken) $error = "ไม่พบ GLPI application token สำหรับเครือข่ายนี้";
     else {
         $headers = [
             "App-Token: $appToken",
@@ -230,33 +252,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $headers[] = "Session-Token: " . $session['session_token'];
 
             $enc  = urlencode($hostname);
-            $cRes = glpiGet("search/Computer?criteria[0][field]=1&criteria[0][searchtype]=contains&criteria[0][value]=$enc&forcedisplay[0]=1&forcedisplay[1]=2&range=0-5", $headers);
+            $cRes = glpiGet("search/Computer?criteria[0][field]=1&criteria[0][searchtype]=equals&criteria[0][value]=$enc&forcedisplay[0]=1&forcedisplay[1]=2&range=0-1", $headers);
+            $cRow = findExactMatch($cRes, $hostname);
 
-            if (empty($cRes['data'])) {
+            if (!$cRow || empty($cRow['2'])) {
                 $error = "ไม่พบเครื่อง '$hostname' ใน GLPI กรุณารอสัก 5 นาทีแล้วลองใหม่";
             } else {
-                $cRow = $cRes['data'][0];
-                $cId  = $cRow['2'] ?? $cRow['1'] ?? null;
+                $cId  = $cRow['2'];
 
                 $larkEnc     = urlencode($lark);
-                $uRes        = glpiGet("search/User?criteria[0][field]=1&criteria[0][searchtype]=contains&criteria[0][value]=$larkEnc&forcedisplay[0]=1&forcedisplay[1]=2&range=0-5", $headers);
+                $uRes        = glpiGet("search/User?criteria[0][field]=1&criteria[0][searchtype]=equals&criteria[0][value]=$larkEnc&forcedisplay[0]=1&forcedisplay[1]=2&range=0-1", $headers);
+                $uRow        = findExactMatch($uRes, $lark);
                 $userCreated = false;
 
-                if (empty($uRes['data'])) {
-                    $newUserId = createGlpiUser($lark, $empId, $headers);
+                if (!$uRow && $cfg['allowUserCreation']) {
+                    $newUserId = createGlpiUser($lark, $headers);
                     if ($newUserId) {
                         $uRes        = ['data' => [['2' => $newUserId, '1' => $lark]]];
+                        $uRow        = $uRes['data'][0];
                         $userCreated = true;
                     }
                 }
 
                 $gId     = null;
                 $gSearch = urlencode($subdept ?: $dept);
-                $gRes    = glpiGet("search/Group?criteria[0][field]=1&criteria[0][searchtype]=contains&criteria[0][value]=$gSearch&forcedisplay[0]=1&forcedisplay[1]=2&range=0-5", $headers);
-                if (!empty($gRes['data'])) {
-                    $gRow = $gRes['data'][0];
-                    $gId  = $gRow['2'] ?? $gRow['1'] ?? null;
-                }
+                $gRes    = glpiGet("search/Group?criteria[0][field]=1&criteria[0][searchtype]=equals&criteria[0][value]=$gSearch&forcedisplay[0]=1&forcedisplay[1]=2&range=0-1", $headers);
+                $gRow    = findExactMatch($gRes, $subdept ?: $dept);
+                if ($gRow && !empty($gRow['2'])) $gId = $gRow['2'];
 
                 $input = [
                     'id'        => (int)$cId,
@@ -264,10 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'comment'   => "Dept: $deptLabel | Lark: $lark",
                 ];
                 if ($assetNumber !== '')   $input['otherserial'] = $assetNumber;
-                if (!empty($uRes['data'])) {
-                    $uRow = $uRes['data'][0];
-                    $input['users_id'] = (int)($uRow['2'] ?? $uRow['1']);
-                }
+                if ($uRow && !empty($uRow['2'])) $input['users_id'] = (int)$uRow['2'];
                 if ($gId) $input['groups_id'] = (int)$gId;
 
                 $putRes = glpiPut("Computer/$cId", $headers, ['input' => $input]);
@@ -280,11 +299,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                     $result  = [
                         'lark'         => $lark,
-                        'emp_id'       => $empId,
                         'dept'         => $deptLabel,
                         'computer'     => $hostname,
                         'asset_number' => $assetNumber,
-                        'user_linked'  => !empty($uRes['data']),
+                        'user_linked'  => $uRow !== null,
                         'user_created' => $userCreated,
                         'group_linked' => !empty($gRes['data']),
                     ];
@@ -393,11 +411,6 @@ button:active{transform:scale(.98)}
           <label for="lark">Lark Account</label>
           <input type="text" id="lark" name="lark" placeholder="เช่น Dave_IT"
             value="<?= htmlspecialchars($_POST['lark'] ?? '') ?>" autocomplete="off">
-        </div>
-        <div class="field">
-          <label for="emp_id">รหัสพนักงาน <span style="color:var(--muted);font-size:9px">(ใช้เป็นรหัสผ่าน GLPI)</span></label>
-          <input type="text" id="emp_id" name="emp_id" placeholder="เช่น 9124"
-            value="<?= htmlspecialchars($_POST['emp_id'] ?? '') ?>" autocomplete="off" inputmode="numeric">
         </div>
         <div class="field">
           <label for="asset_number">Inventory / Asset Number <span style="color:var(--muted);font-size:9px">(ถ้ามี)</span></label>

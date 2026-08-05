@@ -21,7 +21,9 @@ Describe 'Batch Files' {
     }
 
     It 'batch files use setlocal EnableExtensions' {
-        $bats = Get-ChildItem $root -Recurse -Filter *.bat -Exclude '_local-only'
+        $bats = Get-ChildItem $root -Recurse -Filter *.bat | Where-Object {
+            $_.FullName -notmatch '[\\/]_local-only[\\/]'
+        }
         foreach ($b in $bats) {
             $content = Get-Content $b.FullName -Raw
             $content | Should Match 'setlocal'

@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableExtensions
 :: IT PJPARAWOOD - Open Asset Registration Page
 
 :: ตรวจ Network Gateway
