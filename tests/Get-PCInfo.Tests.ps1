@@ -18,4 +18,11 @@ Describe 'Get-PCInfo' {
         $output = & "$here\..\inventory\Get-PCInfo.ps1"
         ($output -join "`n") | Should Match "ComputerName: $env:COMPUTERNAME"
     }
+
+    It 'produces schema-versioned JSON inventory' {
+        $json = & "$here\..\inventory\Get-PCInfo.ps1" -Format Json | Out-String | ConvertFrom-Json
+        $json.schemaVersion | Should Be '1.0'
+        $json.device.computerName | Should Be $env:COMPUTERNAME
+        ($json.security.PSObject.Properties.Name -contains 'pendingReboot') | Should Be $true
+    }
 }

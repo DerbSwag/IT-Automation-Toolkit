@@ -26,17 +26,18 @@ if errorlevel 1 (
     exit /b 11
 )
 
-set "INV_SCRIPT=%ROOT_DIR%\inventory\Get-PCInfo.ps1"
+set "INV_SCRIPT=%ROOT_DIR%\%INVENTORY_SCRIPT%"
 if not exist "%INV_SCRIPT%" (
     call :Log ERROR "Missing inventory script: %INV_SCRIPT%"
     exit /b 12
 )
 
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-set "OUT_FILE=%OUTPUT_DIR%\%COMPUTERNAME%_%USERNAME%_%DATE:~-4%%DATE:~4,2%%DATE:~7,2%.txt"
+for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "RUN_TIMESTAMP=%%I"
+set "OUT_FILE=%OUTPUT_DIR%\%COMPUTERNAME%_%USERNAME%_%RUN_TIMESTAMP%.json"
 
 call :Log INFO "Collecting inventory to %OUT_FILE%"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%INV_SCRIPT%" -OutputPath "%OUT_FILE%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%INV_SCRIPT%" -OutputPath "%OUT_FILE%" -Format Json
 set "PS_EXIT=%ERRORLEVEL%"
 if not "%PS_EXIT%"=="0" (
     call :Log ERROR "Inventory collection failed with exit code %PS_EXIT%"
@@ -50,6 +51,7 @@ exit /b 0
 :LoadConfig
 for /f "tokens=1,* delims==" %%A in ('findstr /r /c:"^[A-Za-z_][A-Za-z0-9_]*=" "%CONFIG_FILE%"') do (
     if /I "%%A"=="OUTPUT_DIR" set "OUTPUT_DIR=%ROOT_DIR%\%%B"
+    if /I "%%A"=="INVENTORY_SCRIPT" set "INVENTORY_SCRIPT=%%B"
     if /I "%%A"=="LOG_DIR" set "LOG_DIR=%ROOT_DIR%\%%B"
     if /I "%%A"=="LOG_FILE" set "LOG_FILE=%%B"
 )
@@ -57,6 +59,10 @@ for /f "tokens=1,* delims==" %%A in ('findstr /r /c:"^[A-Za-z_][A-Za-z0-9_]*=" "
 if not defined OUTPUT_DIR (
     echo [ERROR] OUTPUT_DIR not found in config
     exit /b 13
+)
+if not defined INVENTORY_SCRIPT (
+    echo [ERROR] INVENTORY_SCRIPT not found in config
+    exit /b 17
 )
 if not defined LOG_DIR (
     echo [ERROR] LOG_DIR not found in config

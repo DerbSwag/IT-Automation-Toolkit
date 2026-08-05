@@ -64,10 +64,10 @@ All scripts use `Read-IniFile.ps1` (shared library) to parse INI config.
 
 | VLAN Prefix | Purpose | App Token |
 |-------------|---------|-----------|
-| `192.168.1.x` | Office / VLAN1 | `APP_TOKENS.VLAN1` |
-| `192.168.2.x` | Production / VLAN2 | `APP_TOKENS.VLAN2` |
-| `192.168.100.x` | VLAN100 | `APP_TOKENS.VLAN100` |
-| `192.168.101.x` | VLAN101 | `APP_TOKENS.VLAN101` |
+| Office subnet | VLAN1 | `APP_TOKENS.VLAN1` |
+| Production subnet | VLAN2 | `APP_TOKENS.VLAN2` |
+| Management subnet | VLAN100 | `APP_TOKENS.VLAN100` |
+| Additional managed subnet | VLAN101 | `APP_TOKENS.VLAN101` |
 | `127.x` | Localhost (dev) | `APP_TOKENS.LOCALHOST` |
 
 `register.php` auto-detects client IP and selects the correct App Token.

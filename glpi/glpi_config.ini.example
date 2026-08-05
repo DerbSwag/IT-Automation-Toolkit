@@ -1,6 +1,21 @@
 [GLPI]
-SERVER_URL=http://YOUR_SERVER_IP
+SERVER_URL=https://YOUR_GLPI_HOST/glpi
 USER_TOKEN=YOUR_USER_TOKEN
+
+[REGISTRATION]
+# Comma-separated CIDR ranges allowed to use the self-service portal.
+ALLOWED_SUBNETS=192.0.2.0/24,198.51.100.0/24,127.0.0.1/32
+# Keep false unless IT has a secure account-provisioning process.
+ALLOW_USER_CREATION=false
+
+[NETWORKS]
+# Map each local subnet to its APP_TOKENS key. Use only documentation ranges
+# here; real network ranges belong in the ignored glpi_config.ini file.
+VLAN1=192.0.2.0/24
+VLAN2=198.51.100.0/24
+VLAN100=203.0.113.0/24
+VLAN101=203.0.113.128/25
+LOCALHOST=127.0.0.1/32
 
 [APP_TOKENS]
 VLAN1=YOUR_APP_TOKEN_VLAN1
