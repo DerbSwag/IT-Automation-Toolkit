@@ -21,11 +21,11 @@ Describe 'Batch Files' {
     }
 
     It 'batch files use setlocal EnableExtensions' {
-        $bats = Get-ChildItem $root -Recurse -Filter *.bat | Where-Object {
-            $_.FullName -notmatch '[\\/]_local-only[\\/]'
+        $bats = git -C $root ls-files -- '*.bat' | ForEach-Object {
+            Join-Path $root $_
         }
         foreach ($b in $bats) {
-            $content = Get-Content $b.FullName -Raw
+            $content = Get-Content $b -Raw
             $content | Should Match 'setlocal'
         }
     }
