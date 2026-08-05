@@ -80,7 +80,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path tests/) {
-            Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
+          Install-Module -Name Pester -RequiredVersion 3.4.0 -Force -SkipPublisherCheck -Scope CurrentUser
             Invoke-Pester tests/ -CI
           } else {
             Write-Host "No tests/ directory found, skipping."
