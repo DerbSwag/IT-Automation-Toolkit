@@ -3,10 +3,23 @@ SERVER_URL=https://YOUR_GLPI_HOST/glpi
 USER_TOKEN=YOUR_USER_TOKEN
 
 [REGISTRATION]
+# Canonical HTTPS URL to register.php. Required when redirecting an HTTP request.
+PUBLIC_BASE_URL=https://YOUR_GLPI_HOST/glpi/register.php
 # Comma-separated CIDR ranges allowed to use the self-service portal.
 ALLOWED_SUBNETS=192.0.2.0/24,198.51.100.0/24,127.0.0.1/32
 # Keep false unless IT has a secure account-provisioning process.
 ALLOW_USER_CREATION=false
+# Set true only after IT issues a short-lived per-device URL using the internal token utility.
+# Store the real secret only in the ignored glpi_config.ini file.
+REQUIRE_REGISTRATION_TOKEN=false
+REGISTRATION_TOKEN_SECRET=REPLACE_WITH_A_RANDOM_32_BYTE_SECRET
+TOKEN_TTL_SECONDS=900
+# Match this value to the GLPI state ID used for newly registered Computers.
+DEFAULT_COMPUTER_STATE_ID=1
+# Standard GLPI field by default. Use an approved custom field only after testing it in GLPI.
+ASSET_NUMBER_FIELD=otherserial
+# Set true in production only after GLPI has a trusted HTTPS certificate.
+REQUIRE_HTTPS_FOR_GLPI=true
 
 [NETWORKS]
 # Map each local subnet to its APP_TOKENS key. Use only documentation ranges

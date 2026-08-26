@@ -76,4 +76,38 @@ Describe 'GLPI registration portal hardening' {
         $portal | Should Match 'search/User.*searchtype]=equals'
         $portal | Should Match 'search/Group.*searchtype]=equals'
     }
+
+    It 'escapes the displayed hostname and never redirects from HTTP_HOST' {
+        $portal | Should Match 'htmlspecialchars\(\$hostname \?:'
+        $portal | Should Not Match 'HTTP_HOST'
+    }
+
+    It 'stores logs outside the web directory and supports one-time registration tokens' {
+        $portal | Should Match "dirname\(__DIR__, 2\) . '/var/log/glpi-registration'"
+        $portal | Should Match 'REQUIRE_REGISTRATION_TOKEN'
+        $portal | Should Match 'consumeRegistrationToken'
+    }
+
+    It 'takes the GLPI computer state and asset field from configuration' {
+        $portal | Should Match 'defaultComputerStateId'
+        $portal | Should Match 'assetNumberField'
+    }
+}
+
+Describe 'New-RegistrationToken.ps1' {
+    $tokenScript = "$here\..\glpi\scripts\New-RegistrationToken.ps1"
+
+    It 'parses without syntax errors' {
+        $tokens = $null; $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile($tokenScript, [ref]$tokens, [ref]$errors) | Out-Null
+        $errors.Count | Should Be 0
+    }
+
+    It 'requires hostname, Lark account, and a local configuration file' {
+        $content = Get-Content $tokenScript -Raw
+        $content | Should Match '\$Hostname'
+        $content | Should Match '\$LarkAccount'
+        $content | Should Match 'REGISTRATION_TOKEN_SECRET'
+        $content | Should Match 'PUBLIC_BASE_URL'
+    }
 }

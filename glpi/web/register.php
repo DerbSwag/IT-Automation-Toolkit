@@ -1,10 +1,28 @@
 <?php
+function requestIsHttps(): bool {
+    return !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+}
+
+$requestIsHttps = requestIsHttps();
+session_set_cookie_params([
+    'httponly' => true,
+    'secure'   => $requestIsHttps,
+    'samesite' => 'Lax',
+]);
 session_start();
+
+// Registration URLs may contain a short-lived token. Do not cache or forward it.
+header('Cache-Control: no-store, max-age=0');
+header('Pragma: no-cache');
+header('Referrer-Policy: no-referrer');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 // ============================================================
 // Error Logging Setup
 // ============================================================
-$logDir = __DIR__ . '/logs';
+$logDir = getenv('GLPI_REGISTER_LOG_DIR') ?: dirname(__DIR__, 2) . '/var/log/glpi-registration';
 if (!is_dir($logDir)) { mkdir($logDir, 0750, true); }
 ini_set('error_log', $logDir . '/register_' . date('Y-m') . '.log');
 ini_set('log_errors', '1');
@@ -21,21 +39,11 @@ function logEvent(string $level, string $msg, array $ctx = []): void {
 }
 
 // ============================================================
-// HTTPS Enforcement
-// ============================================================
-if (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === 'off') {
-    if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'])) {
-        $redirectUrl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-        header("Location: $redirectUrl", true, 301);
-        exit;
-    }
-}
-
-// ============================================================
 // Rate Limiting (file-based, 5 requests per 10 minutes per IP)
 // ============================================================
 function checkRateLimit(string $ip, int $maxAttempts = 5, int $windowSec = 600): bool {
-    $dir = __DIR__ . '/logs/ratelimit';
+    global $logDir;
+    $dir = $logDir . '/ratelimit';
     if (!is_dir($dir)) { mkdir($dir, 0750, true); }
     $file = $dir . '/' . md5($ip) . '.json';
     $now  = time();
@@ -77,10 +85,48 @@ $cfg = [
     'networks'  => $ini['NETWORKS'] ?? [],
     'allowedSubnets' => array_filter(array_map('trim', explode(',', $ini['REGISTRATION']['ALLOWED_SUBNETS'] ?? ''))),
     'allowUserCreation' => filter_var($ini['REGISTRATION']['ALLOW_USER_CREATION'] ?? false, FILTER_VALIDATE_BOOLEAN),
+    'publicBaseUrl' => rtrim(trim($ini['REGISTRATION']['PUBLIC_BASE_URL'] ?? ''), '/'),
+    'requireRegistrationToken' => filter_var($ini['REGISTRATION']['REQUIRE_REGISTRATION_TOKEN'] ?? false, FILTER_VALIDATE_BOOLEAN),
+    'registrationTokenSecret' => $ini['REGISTRATION']['REGISTRATION_TOKEN_SECRET'] ?? '',
+    'tokenTtlSeconds' => max(60, min(86400, (int)($ini['REGISTRATION']['TOKEN_TTL_SECONDS'] ?? 900))),
+    'defaultComputerStateId' => max(1, (int)($ini['REGISTRATION']['DEFAULT_COMPUTER_STATE_ID'] ?? 1)),
+    'assetNumberField' => trim($ini['REGISTRATION']['ASSET_NUMBER_FIELD'] ?? 'otherserial'),
+    'requireHttpsForGlpi' => filter_var($ini['REGISTRATION']['REQUIRE_HTTPS_FOR_GLPI'] ?? false, FILTER_VALIDATE_BOOLEAN),
 ];
 
 $glpiUrl   = $cfg['glpiUrl'];
 $userToken = $cfg['userToken'];
+
+if ($cfg['publicBaseUrl'] !== '' && (!filter_var($cfg['publicBaseUrl'], FILTER_VALIDATE_URL) || parse_url($cfg['publicBaseUrl'], PHP_URL_SCHEME) !== 'https')) {
+    http_response_code(500);
+    die('Invalid PUBLIC_BASE_URL configuration.');
+}
+if ($cfg['requireRegistrationToken'] && strlen($cfg['registrationTokenSecret']) < 32) {
+    http_response_code(500);
+    die('Invalid registration-token configuration.');
+}
+if (!preg_match('/^[a-z_][a-z0-9_]*$/', $cfg['assetNumberField'])) {
+    http_response_code(500);
+    die('Invalid asset-number field configuration.');
+}
+if ($cfg['requireHttpsForGlpi'] && parse_url($glpiUrl, PHP_URL_SCHEME) !== 'https') {
+    http_response_code(500);
+    die('GLPI API must use HTTPS.');
+}
+
+// Never build a redirect from the untrusted Host header. Configure PUBLIC_BASE_URL instead.
+if (!$requestIsHttps && !in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)) {
+    if ($cfg['publicBaseUrl'] === '') {
+        http_response_code(400);
+        die('HTTPS is required. Contact IT administrator.');
+    }
+    $query = [];
+    foreach (['hn', 'rt'] as $key) {
+        if (isset($_GET[$key]) && is_string($_GET[$key])) $query[$key] = $_GET[$key];
+    }
+    header('Location: ' . $cfg['publicBaseUrl'] . ($query ? '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986) : ''), true, 302);
+    exit;
+}
 
 // ============================================================
 $departments = [
@@ -123,6 +169,41 @@ function getAppToken($ip) {
         if ($token !== '' && isIpInCidr($ip, $cidr)) return $token;
     }
     return null;
+}
+
+function isValidHostname(string $hostname): bool {
+    return (bool)preg_match('/^[A-Z0-9][A-Z0-9-]{0,62}$/', $hostname);
+}
+
+function base64UrlEncode(string $value): string {
+    return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+}
+
+function verifyRegistrationToken(string $token, string $hostname, string $lark): bool {
+    global $cfg;
+    if (!$cfg['requireRegistrationToken']) return true;
+    if (!preg_match('/^v1\.([0-9]{10})\.([A-Za-z0-9_-]{16,64})\.([A-Za-z0-9_-]{43})$/', $token, $parts)) return false;
+
+    [, $expires, $nonce, $signature] = $parts;
+    $expiry = (int)$expires;
+    if ($expiry < time() || $expiry > time() + $cfg['tokenTtlSeconds']) return false;
+
+    // The signature binds the link to both the expected device and Lark account.
+    $expected = base64UrlEncode(hash_hmac('sha256', "$hostname|$lark|$expires|$nonce", $cfg['registrationTokenSecret'], true));
+    return hash_equals($expected, $signature);
+}
+
+function consumeRegistrationToken(string $token): bool {
+    global $cfg, $logDir;
+    if (!$cfg['requireRegistrationToken']) return true;
+    $dir = $logDir . '/used-registration-tokens';
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) return false;
+    $file = $dir . '/' . hash('sha256', $token);
+    $handle = @fopen($file, 'x');
+    if ($handle === false) return false;
+    fwrite($handle, (string)time());
+    fclose($handle);
+    return true;
 }
 
 // ============================================================
@@ -192,6 +273,8 @@ function findExactMatch(array $response, string $name): ?array {
 // Logic
 // ============================================================
 $hostname = strtoupper(trim($_GET['hn'] ?? $_POST['hn'] ?? ''));
+if ($hostname !== '' && !isValidHostname($hostname)) $hostname = '';
+$registrationToken = trim($_GET['rt'] ?? $_POST['rt'] ?? '');
 $result   = null;
 $error    = null;
 $success  = false;
@@ -230,11 +313,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$error && empty($lark))         $error = "กรุณากรอก Lark account";
     elseif (!$error && empty($dept))     $error = "กรุณาเลือกแผนก";
     elseif (!$error && empty($hostname)) $error = "ไม่พบชื่อเครื่อง กรุณาใช้ shortcut ที่ IT ส่งให้";
-    elseif (!$error && !preg_match('/^[A-Z0-9][A-Z0-9-]{0,62}$/', $hostname)) $error = "ชื่อเครื่องไม่ถูกต้อง";
     elseif (!$error && !array_key_exists($dept, $departments)) $error = "แผนกไม่ถูกต้อง";
     elseif (!$error && $subdept !== '' && !in_array($subdept, $departments[$dept], true)) $error = "แผนกย่อยไม่ถูกต้อง";
     elseif (!$error && !isAllowedClient($clientIp)) $error = "เครือข่ายนี้ไม่ได้รับอนุญาตให้ลงทะเบียน";
     elseif (!$error && !$appToken) $error = "ไม่พบ GLPI application token สำหรับเครือข่ายนี้";
+    elseif (!$error && !verifyRegistrationToken($registrationToken, $hostname, $lark)) $error = "ลิงก์ลงทะเบียนไม่ถูกต้อง หมดอายุ หรือไม่ได้ออกให้บัญชีนี้";
     else {
         $headers = [
             "App-Token: $appToken",
@@ -282,10 +365,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $input = [
                     'id'        => (int)$cId,
-                    'states_id' => 1,
+                    'states_id' => $cfg['defaultComputerStateId'],
                     'comment'   => "Dept: $deptLabel | Lark: $lark",
                 ];
-                if ($assetNumber !== '')   $input['otherserial'] = $assetNumber;
+                if ($assetNumber !== '')   $input[$cfg['assetNumberField']] = $assetNumber;
                 if ($uRow && !empty($uRow['2'])) $input['users_id'] = (int)$uRow['2'];
                 if ($gId) $input['groups_id'] = (int)$gId;
 
@@ -293,6 +376,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (isset($putRes['_error'])) {
                     logEvent('ERROR', "Update computer failed", ['computer_id' => $cId, 'error' => $putRes['_error']]);
                     $error = "อัปเดตข้อมูลเครื่องไม่สำเร็จ กรุณาลองใหม่หรือติดต่อ IT";
+                } elseif (!consumeRegistrationToken($registrationToken)) {
+                    logEvent('WARN', "Registration token already used", ['hostname' => $hostname]);
+                    $error = "ลิงก์ลงทะเบียนนี้ถูกใช้งานแล้ว กรุณาติดต่อ IT";
                 } else {
                     $success = true;
                     logEvent('INFO', "Registration success", ['hostname' => $hostname, 'lark' => $lark, 'dept' => $deptLabel]);
@@ -304,7 +390,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'asset_number' => $assetNumber,
                         'user_linked'  => $uRow !== null,
                         'user_created' => $userCreated,
-                        'group_linked' => !empty($gRes['data']),
+                        'group_linked' => $gId !== null,
                     ];
                 }
             }
@@ -320,12 +406,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ลงทะเบียนเครื่อง — PJPARAWOOD IT</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Sarabun:wght@300;400;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#eef5f4;--surface:#ffffff;--border:#c8deda;--accent:#3aab8c;--text:#1a2e2b;--muted:#7aa098;--green:#2e9e74;--red:#d95f5f}
-body{min-height:100vh;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;font-family:'Sarabun',sans-serif;color:var(--text)}
+body{min-height:100vh;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;font-family:'Leelawadee UI',Tahoma,sans-serif;color:var(--text)}
 .wrap{width:100%;max-width:420px}
-.logo{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;margin-bottom:28px;display:flex;align-items:center;gap:8px}
+.logo{font-family:Consolas,'Courier New',monospace;font-size:11px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;margin-bottom:28px;display:flex;align-items:center;gap:8px}
 .logo::before{content:'';display:block;width:20px;height:1px;background:var(--accent)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 28px rgba(46,158,116,.10)}
 .card-top{padding:28px 28px 0}
@@ -334,12 +419,12 @@ h1{font-size:22px;font-weight:600;line-height:1.3;margin-bottom:6px;color:var(--
 .device-box{background:#f2faf8;border:1px solid var(--border);border-radius:6px;padding:12px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px}
 .dot{width:8px;height:8px;border-radius:50%;background:<?= $hostname?'var(--green)':'var(--red)'?>;flex-shrink:0;animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.device-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
-.device-name{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--text)}
+.device-label{font-family:Consolas,'Courier New',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.device-name{font-family:Consolas,'Courier New',monospace;font-size:14px;font-weight:600;color:var(--text)}
 .card-body{padding:0 28px 28px}
 .field{margin-bottom:16px}
-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
-input[type=text],select{width:100%;background:#f7fbfa;border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:'Sarabun',sans-serif;font-size:15px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;appearance:none;-webkit-appearance:none}
+label{display:block;font-family:Consolas,'Courier New',monospace;font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+input[type=text],select{width:100%;background:#f7fbfa;border:1px solid var(--border);border-radius:6px;padding:12px 16px;font-family:'Leelawadee UI',Tahoma,sans-serif;font-size:15px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;appearance:none;-webkit-appearance:none}
 input[type=text]:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(58,171,140,.14)}
 input[type=text]::placeholder{color:var(--muted);opacity:.6}
 .select-wrap{position:relative}
@@ -347,21 +432,21 @@ input[type=text]::placeholder{color:var(--muted);opacity:.6}
 select option{background:#ffffff;color:var(--text)}
 select:disabled{opacity:.4;cursor:not-allowed}
 .dept-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-button{width:100%;margin-top:6px;padding:14px;background:var(--accent);color:#ffffff;border:none;border-radius:6px;font-family:'Sarabun',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s,box-shadow .15s;box-shadow:0 2px 12px rgba(46,158,116,.30)}
+button{width:100%;margin-top:6px;padding:14px;background:var(--accent);color:#ffffff;border:none;border-radius:6px;font-family:'Leelawadee UI',Tahoma,sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s,box-shadow .15s;box-shadow:0 2px 12px rgba(46,158,116,.30)}
 button:hover{opacity:.90;box-shadow:0 4px 18px rgba(46,158,116,.40)}
 button:active{transform:scale(.98)}
 .msg{margin-top:16px;padding:14px 16px;border-radius:6px;font-size:14px;line-height:1.6}
 .ok{background:#eaf8f2;border:1px solid #9ed8c0;color:#1d6448}
 .err{background:#fdf0f0;border:1px solid #ebbdbd;color:var(--red)}
 .ok-title{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--green)}
-.ok-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-family:'IBM Plex Mono',monospace;padding:6px 0;border-bottom:1px solid #c4e8d8}
+.ok-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-family:Consolas,'Courier New',monospace;padding:6px 0;border-bottom:1px solid #c4e8d8}
 .ok-row:last-child{border-bottom:none}
 .ok-key{color:var(--muted)}
 .ok-val{color:var(--green)}
-.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:99px;font-family:Consolas,'Courier New',monospace;font-weight:600}
 .b-ok{background:#cff2e4;color:var(--green)}
 .b-warn{background:#fef3d0;color:#a07010}
-.card-foot{border-top:1px solid var(--border);padding:12px 28px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);display:flex;justify-content:space-between;background:#f7fbfa}
+.card-foot{border-top:1px solid var(--border);padding:12px 28px;font-family:Consolas,'Courier New',monospace;font-size:10px;color:var(--muted);display:flex;justify-content:space-between;background:#f7fbfa}
 </style>
 </head>
 <body>
@@ -375,7 +460,7 @@ button:active{transform:scale(.98)}
         <div class="dot"></div>
         <div>
           <div class="device-label">Computer name</div>
-          <div class="device-name"><?= $hostname ?: 'ไม่พบชื่อเครื่อง — กรุณาใช้ shortcut จาก IT' ?></div>
+          <div class="device-name"><?= htmlspecialchars($hostname ?: 'ไม่พบชื่อเครื่อง — กรุณาใช้ shortcut จาก IT', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
         </div>
       </div>
     </div>
@@ -405,8 +490,11 @@ button:active{transform:scale(.98)}
         </div>
       </div>
     <?php else: ?>
-      <form method="POST" action="?hn=<?= urlencode($hostname) ?>">
+      <form method="POST" action="?hn=<?= urlencode($hostname) ?><?= $registrationToken !== '' ? '&amp;rt=' . urlencode($registrationToken) : '' ?>">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+        <?php if ($registrationToken !== ''): ?>
+        <input type="hidden" name="rt" value="<?= htmlspecialchars($registrationToken, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>">
+        <?php endif; ?>
         <div class="field">
           <label for="lark">Lark Account</label>
           <input type="text" id="lark" name="lark" placeholder="เช่น Dave_IT"
