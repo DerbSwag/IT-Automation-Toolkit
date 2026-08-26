@@ -2,14 +2,14 @@
 setlocal enabledelayedexpansion
 
 REM ============================================================
-REM  IT PJPARAWOOD - Computer Inventory + GLPI Agent Installer
+REM  IT Automation Toolkit - Computer Inventory + GLPI Agent Installer
 REM  Version: 2025
 REM  Author: Natthawat R. (Modified & Improved by Gemini)
 REM ============================================================
 
 :: --- Display Banner ---
 echo ================================================
-echo    IT PJPARAWOOD Computer Inventory 2025
+echo    IT Automation Toolkit Computer Inventory 2025
 echo ================================================
 echo.
 

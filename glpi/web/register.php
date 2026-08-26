@@ -404,7 +404,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ลงทะเบียนเครื่อง — PJPARAWOOD IT</title>
+<title>ลงทะเบียนเครื่อง — IT Automation Toolkit</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#eef5f4;--surface:#ffffff;--border:#c8deda;--accent:#3aab8c;--text:#1a2e2b;--muted:#7aa098;--green:#2e9e74;--red:#d95f5f}
@@ -451,7 +451,7 @@ button:active{transform:scale(.98)}
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">IT PJPARAWOOD &mdash; Asset Registration</div>
+  <div class="logo">IT Automation Toolkit &mdash; Asset Registration</div>
   <div class="card">
     <div class="card-top">
       <h1>ลงทะเบียนเครื่องนี้</h1>
@@ -531,7 +531,7 @@ button:active{transform:scale(.98)}
     <?php endif; ?>
     </div>
     <div class="card-foot">
-      <span>PJPARAWOOD IT</span>
+      <span>IT Automation Toolkit</span>
       <span><?= htmlspecialchars($_SERVER['REMOTE_ADDR'] ?? '') ?></span>
     </div>
   </div>

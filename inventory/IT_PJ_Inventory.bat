@@ -2,11 +2,11 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 REM ============================================================
-REM  IT PJPARAWOOD - Computer Inventory + GLPI Agent Installer
+REM  IT Automation Toolkit - Computer Inventory + GLPI Agent Installer
 REM  Version: 2025 (Merged)
 REM  Reads config from config\toolkit.ini
 REM  Replaces: IT_PJ_Computer Inventory.bat, IT_PJ_Inven.bat,
-REM            IT pjparawood computer inventory.bat
+REM            IT Automation Toolkit computer inventory.bat
 REM ============================================================
 
 set "SCRIPT_DIR=%~dp0"
@@ -27,7 +27,7 @@ if errorlevel 1 (
 )
 
 echo ================================================
-echo    IT PJPARAWOOD Computer Inventory 2025
+echo    IT Automation Toolkit Computer Inventory 2025
 echo ================================================
 echo.
 
