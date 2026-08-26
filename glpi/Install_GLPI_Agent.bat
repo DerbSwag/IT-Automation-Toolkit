@@ -2,7 +2,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 REM ============================================================
-REM  IT PJPARAWOOD - GLPI Agent Installer
+REM  IT Automation Toolkit - GLPI Agent Installer
 REM  Version: 2025 (HTTP Download)
 REM  Reads config from config\toolkit.ini
 REM ============================================================
@@ -25,7 +25,7 @@ if errorlevel 1 (
 )
 
 echo ================================================
-echo    IT PJPARAWOOD - GLPI Agent Installer 2025
+echo    IT Automation Toolkit - GLPI Agent Installer 2025
 echo ================================================
 echo.
 
