@@ -8,8 +8,8 @@ All notable changes to this project will be documented in this file.
 - `it-bot-demo.html` — Interactive AI IT Support Bot prototype (Thai language)
 - `config/httpd.conf` — Apache configuration for GLPI web portal
 - `scripts/Deploy-ZabbixAgent2.ps1` — Zabbix Agent 2 deployment script
-- `inventory/IT_PJ_Computer_Inventory.bat` — Computer-only inventory variant
-- `inventory/IT_PJ_Inven.bat` — Lightweight inventory script
+- `inventory/inventory_computer_legacy.bat` — Computer-only inventory variant
+- `inventory/inventory_legacy.bat` — Lightweight inventory script
 - `glpi/open_register.bat` — Opens registration portal in browser
 - `glpi/scripts/lib/Read-IniFile.ps1` — Shared INI parser library
 - `docs/case-study.md` — Real-world impact case study

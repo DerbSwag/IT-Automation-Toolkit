@@ -5,8 +5,7 @@ REM ============================================================
 REM  IT Automation Toolkit - Computer Inventory + GLPI Agent Installer
 REM  Version: 2025 (Merged)
 REM  Reads config from config\toolkit.ini
-REM  Replaces: IT_PJ_Computer Inventory.bat, IT_PJ_Inven.bat,
-REM            IT Automation Toolkit computer inventory.bat
+REM  Consolidates the legacy computer-only and lightweight inventory variants.
 REM ============================================================
 
 set "SCRIPT_DIR=%~dp0"

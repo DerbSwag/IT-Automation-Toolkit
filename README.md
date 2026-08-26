@@ -93,9 +93,9 @@ IT-Automation-Toolkit/
 │       └── register.php                # Registration backend (HTTPS + rate limit)
 ├── inventory/
 │   ├── Get-PCInfo.ps1                  # PowerShell inventory collector
-│   ├── IT_PJ_Inventory.bat             # All-in-one: inventory + GLPI install
-│   ├── IT_PJ_Computer_Inventory.bat    # Computer-only inventory variant
-│   ├── IT_PJ_Inven.bat                 # Lightweight inventory script
+│   ├── inventory_glpi_agent.bat         # All-in-one: inventory + GLPI install
+│   ├── inventory_computer_legacy.bat    # Computer-only legacy variant
+│   ├── inventory_legacy.bat             # Lightweight legacy script
 │   └── inventory.bat                   # Runner with admin elevation + logging
 ├── scripts/
 │   ├── HealthCheck-GLPI.ps1            # Server health check + Lark alerts (v1.2.0)
@@ -150,7 +150,7 @@ Silent deployment of GLPI Agent with pre-flight checks.
 |--------|----------|
 | `Install_GLPI_Agent.bat` | **Recommended** — Downloads MSI via HTTP, verifies SHA256, installs silently |
 | `install_glpi.bat` | Legacy — Uses MSI from local network share |
-| `IT_PJ_Inventory.bat` | All-in-one — Inventory + GLPI install in a single run |
+| `inventory_glpi_agent.bat` | All-in-one — Inventory + GLPI install in a single run |
 
 > `install_glpi.bat` is kept for environments without HTTP download. For new deployments, prefer `Install_GLPI_Agent.bat`.
 

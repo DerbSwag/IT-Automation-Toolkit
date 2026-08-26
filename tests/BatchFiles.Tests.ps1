@@ -14,8 +14,8 @@ Describe 'Batch Files' {
         (Get-Item $f).Length | Should BeGreaterThan 0
     }
 
-    It 'IT_PJ_Inventory.bat exists and is not empty' {
-        $f = "$root\inventory\IT_PJ_Inventory.bat"
+    It 'inventory_glpi_agent.bat exists and is not empty' {
+        $f = "$root\inventory\inventory_glpi_agent.bat"
         (Test-Path $f) | Should Be $true
         (Get-Item $f).Length | Should BeGreaterThan 0
     }
