@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions
-:: IT PJPARAWOOD - Open Asset Registration Page
+:: IT  - Open Asset Registration Page
 
 :: ตรวจ Network Gateway
 set "GW="
