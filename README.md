@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/DerbSwag/IT-Automation-Toolkit/actions/workflows/ci.yml)
 
-Production-oriented Windows automation toolkit for endpoint onboarding, inventory collection, GLPI asset management, and Lark integration.
+Windows automation toolkit for endpoint onboarding, inventory collection, GLPI asset management, and Lark integration.
 
-> 💼 **Real-world project** — Built and used daily by a sole IT engineer managing 100+ users in a manufacturing facility. Not a tutorial — this runs in production.
+> This public repository is a safe reference implementation. Keep real URLs, tokens, package files, and operational configuration in a separate internal repository.
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
 ![Batch](https://img.shields.io/badge/Batch-4D4D4D?style=for-the-badge&logo=windows-terminal&logoColor=white)
@@ -30,7 +30,7 @@ Production-oriented Windows automation toolkit for endpoint onboarding, inventor
 
 ## 🚀 Overview
 
-This toolkit automates repetitive IT operations in a manufacturing environment (100+ users):
+This toolkit automates repetitive Windows endpoint operations:
 
 - **Endpoint inventory** — Collect hardware/software info via PowerShell
 - **GLPI Agent deployment** — Silent install with network validation
@@ -77,8 +77,8 @@ IT-Automation-Toolkit/
 │   ├── toolkit.ini                     # Centralized configuration
 │   └── httpd.conf                      # Apache config for GLPI web portal
 ├── glpi/
-│   ├── install_glpi.bat                # GLPI Agent installer (production)
-│   ├── Install_GLPI_Agent.bat          # GLPI Agent installer v2 (download + install)
+│   ├── install_glpi.bat                # Canonical GLPI Agent install component
+│   ├── Install_GLPI_Agent.bat          # Standalone compatibility installer
 │   ├── Uninstall_GLPI_Agent.bat        # GLPI Agent uninstaller (v1.2.0)
 │   ├── open_register.bat              # Opens registration portal in browser
 │   ├── glpi_config.ini.example         # Config template (copy & fill your tokens)
@@ -93,9 +93,9 @@ IT-Automation-Toolkit/
 │       └── register.php                # Registration backend (HTTPS + rate limit)
 ├── inventory/
 │   ├── Get-PCInfo.ps1                  # PowerShell inventory collector
-│   ├── inventory_glpi_agent.bat         # All-in-one: inventory + GLPI install
-│   ├── inventory_computer_legacy.bat    # Computer-only legacy variant
-│   ├── inventory_legacy.bat             # Lightweight legacy script
+│   ├── inventory_glpi_agent.bat        # Legacy all-in-one variant
+│   ├── inventory_computer_legacy.bat   # Legacy computer-only variant
+│   ├── inventory_legacy.bat            # Legacy lightweight variant
 │   └── inventory.bat                   # Runner with admin elevation + logging
 ├── scripts/
 │   ├── HealthCheck-GLPI.ps1            # Server health check + Lark alerts (v1.2.0)
@@ -108,14 +108,13 @@ IT-Automation-Toolkit/
 │   ├── GLPIScripts.Tests.ps1           # API scripts syntax + param tests (v1.2.0)
 │   └── BatchFiles.Tests.ps1            # Batch file validation tests (v1.2.0)
 ├── docs/
-│   ├── architecture.md                 # System architecture + VLAN diagram
+│   ├── architecture.md                 # System architecture
 │   ├── workflow.md                     # Workflow diagrams (5 flows)
-│   ├── network-diagram.md             # Network layout + firewall rules
+│   ├── network-diagram.md              # Example network layout + firewall rules
 │   ├── case-study.md                   # Real-world impact case study
-│   └── screenshots/                    # UI screenshots for documentation
+│   └── AI_Helpdesk_Bot_Proposal.md     # Optional future integration proposal
 ├── .github/workflows/
-│   ├── ci.yml                          # CI: file validation + PS syntax check
-│   └── gitleaks.yml                    # Secret scanning (credential leak prevention)
+│   └── ci.yml                          # CI: file validation, syntax checks, and Pester
 ├── it-bot-demo.html                    # 🤖 AI IT Support Bot demo (interactive)
 ├── .gitignore
 ├── AGENTS.md                           # AI agent context file
@@ -130,37 +129,35 @@ IT-Automation-Toolkit/
 
 ### 📦 Inventory Collection (`inventory/`)
 
-Collects endpoint hardware and software information.
+Collects endpoint hardware, operating-system, network, and security posture information.
 
 ```
 inventory.bat → elevates to admin → runs Get-PCInfo.ps1 → saves output
 ```
 
-- Hostname, OS, CPU, RAM, disk, network adapters
-- Installed software list
-- Output to timestamped file
+- Hostname, manufacturer, model, serial number, BIOS, OS, CPU, RAM, disk, and network adapters
+- BitLocker, Secure Boot, TPM, Defender, and pending-reboot posture
+- Schema-versioned JSON output with a UTC timestamp
 
 ### 🔧 GLPI Agent Deployment (`glpi/`)
 
 Silent deployment of GLPI Agent with pre-flight checks.
 
-**Which script to use:**
+**Current workflow:**
 
 | Script | Use When |
 |--------|----------|
-| `Install_GLPI_Agent.bat` | **Recommended** — Downloads MSI via HTTP, verifies SHA256, installs silently |
-| `install_glpi.bat` | Legacy — Uses MSI from local network share |
-| `inventory_glpi_agent.bat` | All-in-one — Inventory + GLPI install in a single run |
-
-> `install_glpi.bat` is kept for environments without HTTP download. For new deployments, prefer `Install_GLPI_Agent.bat`.
-
+| `portable/endpoint_toolkit.bat` | **Current entry point** — elevates, runs `inventory.bat`, then calls `install_glpi.bat` |
+| `glpi/install_glpi.bat` | GLPI Agent component used by the portable workflow; installs the configured MSI and triggers inventory |
+| `glpi/Install_GLPI_Agent.bat` | Standalone compatibility installer; do not adopt its HTTP download path for a new deployment |
+| `inventory/inventory_glpi_agent.bat` | Legacy all-in-one variant; retained for reference only |
 
 ```
-Install_GLPI_Agent.bat → ping server → download MSI → silent install → trigger inventory
+endpoint_toolkit.bat → inventory.bat → install_glpi.bat → trigger GLPI inventory
 ```
 
-- Network reachability validation before install
-- Configurable server URL and MSI path
+- Validates the configured GLPI API endpoint before installation
+- Uses the MSI package and location configured in `config/toolkit.ini`
 - Error handling with logging
 
 ### 📡 GLPI API Scripts (`glpi/scripts/`)
@@ -191,6 +188,8 @@ One-click endpoint onboarding script.
 endpoint_toolkit.bat → validate config → elevate admin → inventory → GLPI install
 ```
 
+> Registration remains a separate user-facing step. The current launcher does not yet verify that GLPI has received the inventory or automatically open the registration page.
+
 ### 🩺 Health Check (`scripts/`)
 
 Server monitoring with Lark alerting (v1.2.0).
@@ -198,27 +197,6 @@ Server monitoring with Lark alerting (v1.2.0).
 ```
 HealthCheck-GLPI.ps1 → check agent service → ping server → test API → verify last inventory → alert on failure
 ```
-
----
-
-## 📸 Screenshots
-
-| GLPI Dashboard | Registration Portal |
-|:-:|:-:|
-| ![GLPI Dashboard](docs/screenshots/glpi-dashboard.png) | ![Registration Form](docs/screenshots/registration-form.png) |
-
-| Agent Installer (Download) | Agent Installer (Success) |
-|:-:|:-:|
-| ![Agent Download](docs/screenshots/agent-installer-download.png) | ![Agent Success](docs/screenshots/agent-installer-success.png) |
-
-<details>
-<summary>📖 Registration Guide (step-by-step)</summary>
-
-![Step 1](docs/screenshots/registration-guide-1.png)
-![Step 2](docs/screenshots/registration-guide-2.png)
-![Step 3](docs/screenshots/registration-guide-3.png)
-
-</details>
 
 ---
 
@@ -239,16 +217,16 @@ Interactive AI-powered IT helpdesk chatbot prototype ([`it-bot-demo.html`](it-bo
 
 ```ini
 [GLPI]
-SERVER_URL=http://glpi.example.local/glpi/front/inventory.php
+SERVER_URL=https://glpi.example.local/glpi/front/inventory.php
 MSI_NAME=GLPI-Agent.msi
 PING_HOST=glpi.example.local
 
 [INVENTORY]
-OUTPUT_DIR=..\output\inventory
-INVENTORY_SCRIPT=..\inventory\Get-PCInfo.ps1
+OUTPUT_DIR=output\inventory
+INVENTORY_SCRIPT=inventory\Get-PCInfo.ps1
 
 [LOGGING]
-LOG_DIR=..\logs
+LOG_DIR=logs
 LOG_FILE=toolkit.log
 ```
 
@@ -256,7 +234,7 @@ LOG_FILE=toolkit.log
 
 ```ini
 [GLPI]
-SERVER_URL=http://YOUR_SERVER_IP
+SERVER_URL=https://YOUR_GLPI_HOST/glpi
 USER_TOKEN=YOUR_USER_TOKEN
 
 [APP_TOKENS]
@@ -272,7 +250,7 @@ VLAN2=YOUR_APP_TOKEN_VLAN2
 
 - ✅ No hardcoded credentials — all tokens in config files (gitignored)
 - ✅ `.ini.example` provided as template
-- ✅ HTTPS enforced on registration portal (v1.2.0)
+- ✅ HTTPS supported and enforceable for the registration portal and GLPI API
 - ✅ Rate limiting on public endpoints (v1.2.0)
 - ✅ Restrict execution to authorized IT administrators
 - ✅ All sensitive data sanitized before commit

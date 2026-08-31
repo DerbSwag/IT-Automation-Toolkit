@@ -12,16 +12,15 @@ endpoint_toolkit.bat
     ├─ 4. Run Inventory Collection
     │      └─ inventory/inventory.bat
     │           └─ Get-PCInfo.ps1
-    │                ├─ Collect: hostname, OS, CPU, RAM, disk, NICs, software
-    │                └─ Save to: output/inventory/<hostname>_<date>.txt
+    │                ├─ Collect: hostname, OS, CPU, RAM, disk, NICs, and security posture
+    │                └─ Save JSON: output/inventory/<hostname>_<user>_<UTC timestamp>.json
     │
     ├─ 5. Install GLPI Agent
-    │      └─ Install_GLPI_Agent.bat
-    │           ├─ Ping GLPI server (connectivity check)
-    │           ├─ Download MSI from HTTP server
-    │           ├─ Verify SHA256 checksum
+    │      └─ glpi/install_glpi.bat
+    │           ├─ Validate the configured GLPI API endpoint
+    │           ├─ Locate MSI from the configured installer path
     │           ├─ msiexec /i (silent install)
-    │           └─ Trigger: glpi-agent --force (immediate inventory push)
+    │           └─ Trigger: glpi-agent --force
     │
     └─ 6. Log results to logs/toolkit.log
 ```
@@ -29,22 +28,23 @@ endpoint_toolkit.bat
 ## B. Self-Service Device Registration (Employee)
 
 ```text
-Employee opens browser → http://<server>/register.php?hn=<HOSTNAME>
+Employee opens browser → https://<registration-host>/register.php?hn=<HOSTNAME>
     │
     ├─ 1. Page loads with hostname from URL parameter
-    ├─ 2. Employee fills: Lark account, Employee ID, Department
+    ├─ 2. Employee fills: Lark account, Asset Number (optional), Department
     ├─ 3. Submit (POST with CSRF token)
     │
     └─ register.php backend:
          ├─ Validate CSRF token
-         ├─ Validate input (length, format, required fields)
-         ├─ Detect client IP → select App Token (VLAN-based)
+         ├─ Validate hostname and input (length, format, required fields)
+         ├─ Optionally validate a one-time token bound to hostname and Lark account
+         ├─ Detect client IP → select App Token from an allowed subnet
          ├─ initSession (GLPI API)
-         ├─ Search Computer by hostname
+         ├─ Search Computer by exact hostname; stop if not found or duplicated
          ├─ Search User by Lark account
-         │    └─ If not found → Create user (password = hashed emp_id)
+         │    └─ If not found → Create user with a generated random password
          ├─ Search Group by department name
-         ├─ PUT Computer: assign user, group, status, comment
+         ├─ PUT Computer: assign user, group, configured state, and configured Asset Number field
          ├─ killSession
          └─ Show success/error to employee
 ```
@@ -56,8 +56,8 @@ Create-GLPIGroups.ps1 -ConfigPath glpi_config.ini
     │
     ├─ Read config (server URL, tokens)
     ├─ initSession
-    ├─ Create top-level groups (IT, SH, MM, QA, HR, AC, CP, Sr. Mgt, RD, SCM, Operation, BD&CS)
-    ├─ Create sub-groups with parent ID (e.g., PU → SCM, PD1 → Operation)
+    ├─ Create the configured top-level groups
+    ├─ Create configured child groups with the correct parent ID
     ├─ killSession
     └─ Output: 25 groups created with hierarchy
 ```
@@ -65,14 +65,14 @@ Create-GLPIGroups.ps1 -ConfigPath glpi_config.ini
 ## D. Lark Account Linking (IT runs per-device or scripted)
 
 ```text
-Link-LarkToGLPI.ps1 -LarkAccount "Dave_IT" [-Hostname "PC-001"]
+Link-LarkToGLPI.ps1 -LarkAccount "example.user" [-Hostname "PC-001"]
     │
     ├─ Auto-detect VLAN from local IP → select App Token
     ├─ initSession
     ├─ Search Computer by hostname
     ├─ Search User by Lark account
     │    ├─ Found → PUT Computer.users_id = user ID
-    │    └─ Not found → PUT Computer.comment = "Lark: Dave_IT"
+    │    └─ Not found → PUT Computer.comment = "Lark: example.user"
     ├─ killSession
     └─ Exit code: 0 = success, 1 = failure
 ```
@@ -84,7 +84,7 @@ Push/PR to main
     │
     ├─ Verify required files exist (10 critical files)
     ├─ PowerShell syntax check (all .ps1 files)
-    ├─ Credential leak scan (regex for real tokens)
+    ├─ Credential leak scan (basic token patterns)
     ├─ Batch file inventory (list all .bat)
     └─ Pester test suite (Read-IniFile, Get-PCInfo)
 ```
